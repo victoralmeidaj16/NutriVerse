@@ -33,9 +33,12 @@ yarn-error.*
 # local env files
 .env*.local
 
+# API Keys (never commit)
+src/config/apiKeys.ts
+
 # typescript
 *.tsbuildinfo
 
 # generated native folders
-/ios
-/android
+ios/
+android/

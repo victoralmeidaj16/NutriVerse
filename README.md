@@ -29,12 +29,35 @@ A modern nutrition and fitness superapp built with React Native and Expo. Transf
 npm install
 ```
 
-2. Configure API keys:
-```bash
-# Copy the example file and add your API keys
-cp src/config/apiKeys.example.ts src/config/apiKeys.ts
-# Edit src/config/apiKeys.ts and add your OpenAI API key
-```
+2. Configure Backend API (for OpenAI features):
+
+   **Option A: Use Render Backend (Recommended)**
+   
+   Deploy the backend to Render:
+   - Connect GitHub repository
+   - Set Root Directory to `backend`
+   - Set Build Command to `npm install`
+   - Set Start Command to `npm start`
+   - Add Environment Variable: `OPENAI_API_KEY` = your OpenAI API key
+   - Get your Render URL (e.g., `https://nutriverse.onrender.com`)
+   
+   Then set in your app:
+   ```bash
+   # Create .env file in root
+   EXPO_PUBLIC_API_URL=https://your-render-url.onrender.com
+   ```
+   
+   **Option B: Local Development**
+   
+   ```bash
+   cd backend
+   npm install
+   cp .env.example .env
+   # Edit .env and add your OpenAI API key
+   npm start
+   ```
+   
+   The backend will run on `http://localhost:3000`
 
 3. Start the development server:
 ```bash
@@ -61,26 +84,32 @@ npm run ios
 ## Project Structure
 
 ```
-src/
-├── components/        # Reusable UI components
-│   ├── ui/           # Button, etc.
-│   └── ...           # MacroRing, CategoryChip, etc.
-├── screens/          # App screens
-│   ├── onboarding/   # Onboarding flow
-│   ├── home/         # Home screen
-│   ├── explore/      # Explore screen
-│   ├── profile/      # Profile & goals
-│   ├── fitswap/      # FitSwap engine
-│   ├── cooking/      # Cooking mode
-│   └── planning/     # Weekly planning
-├── services/         # Business logic
-│   ├── fitswap/      # FitSwap engine
-│   ├── openai/       # OpenAI integration
-│   ├── api/          # API client
-│   └── storage/      # Local storage
-├── navigation/       # Navigation setup
-├── theme/            # Design tokens (colors, typography, spacing)
-└── types/            # TypeScript types
+.
+├── backend/          # Backend API (Node.js/Express)
+│   ├── server.js     # API server
+│   ├── package.json  # Backend dependencies
+│   └── .env.example  # Environment variables template
+├── src/
+│   ├── components/   # Reusable UI components
+│   │   ├── ui/       # Button, etc.
+│   │   └── ...       # MacroRing, CategoryChip, etc.
+│   ├── screens/      # App screens
+│   │   ├── onboarding/  # Onboarding flow
+│   │   ├── home/        # Home screen
+│   │   ├── explore/     # Explore screen
+│   │   ├── profile/     # Profile & goals
+│   │   ├── fitswap/     # FitSwap engine
+│   │   ├── cooking/     # Cooking mode
+│   │   └── planning/    # Weekly planning
+│   ├── services/     # Business logic
+│   │   ├── fitswap/  # FitSwap engine
+│   │   ├── openai/   # OpenAI integration (uses backend)
+│   │   ├── api/      # API client
+│   │   └── storage/  # Local storage
+│   ├── navigation/   # Navigation setup
+│   ├── theme/        # Design tokens
+│   └── types/        # TypeScript types
+└── README.md
 ```
 
 ## Design System

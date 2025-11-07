@@ -1,40 +1,32 @@
 /**
  * OpenAI Image Generation Service
- * Generate images using DALL-E API
+ * Generate images using backend API (proxy to protect API key)
  */
 
-import { API_KEYS } from '../../config/apiKeys';
-
-const OPENAI_API_KEY = API_KEYS.OPENAI_API_KEY;
+// Use environment variable or default to localhost for development
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 /**
- * Generate an image using DALL-E
+ * Generate an image using DALL-E via backend API
  */
 export async function generateImage(prompt: string): Promise<string | null> {
   try {
-    const response = await fetch('https://api.openai.com/v1/images/generations', {
+    const response = await fetch(`${API_BASE_URL}/api/generate-image`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'dall-e-3',
-        prompt: prompt,
-        n: 1,
-        size: '1024x1024',
-        quality: 'standard',
-      }),
+      body: JSON.stringify({ prompt }),
     });
 
     if (!response.ok) {
       const error = await response.json();
-      console.error('OpenAI API error:', error);
+      console.error('API error:', error);
       return null;
     }
 
     const data = await response.json();
-    return data.data[0]?.url || null;
+    return data.url || null;
   } catch (error) {
     console.error('Error generating image:', error);
     return null;
@@ -50,4 +42,3 @@ export function generateRecipePrompt(recipeTitle?: string): string {
   }
   return `Beautiful, appetizing food photography, professional food styling, dark background, vibrant colors, high quality, restaurant quality, minimalist composition, focus on healthy nutritious food, NutriVerse brand style`;
 }
-

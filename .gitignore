@@ -36,6 +36,12 @@ yarn-error.*
 # API Keys (never commit)
 src/config/apiKeys.ts
 
+# Backend
+backend/node_modules/
+backend/.env
+backend/.env.local
+backend/*.log
+
 # typescript
 *.tsbuildinfo
 

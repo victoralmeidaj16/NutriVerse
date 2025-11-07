@@ -25,15 +25,15 @@ app.get('/health', (req, res) => {
 
 /**
  * POST /api/generate-image
- * Generate image using OpenAI Images API (gpt-image-1)
+ * Generate image using OpenAI Images API (DALL-E 3 - latest version)
  */
 app.post('/api/generate-image', async (req, res) => {
   try {
     const {
       prompt,
       size = '1024x1024',
-      background,                // 'transparent' | 'white' (opcional)
-      quality = 'standard',      // 'standard' | 'high' (opcional)
+      quality = 'standard',      // 'standard' | 'hd' (DALL-E 3)
+      style = 'vivid',           // 'vivid' | 'natural' (DALL-E 3)
     } = req.body || {};
 
     if (!prompt || typeof prompt !== 'string') {
@@ -44,32 +44,37 @@ app.post('/api/generate-image', async (req, res) => {
       return res.status(500).json({ error: 'OpenAI API key not configured' });
     }
 
-    // Mapeamentos simples (mantém compatível com sua Request)
-    const opts = {
-      model: 'gpt-image-1',
-      prompt,
-      size,
-    };
+    // DALL-E 3 supports: '1024x1024', '1792x1024', '1024x1792'
+    // Map old sizes to DALL-E 3 compatible sizes
+    let dallE3Size = '1024x1024';
+    if (size === '512x512') {
+      dallE3Size = '1024x1024';
+    } else if (size === '2048x2048') {
+      dallE3Size = '1792x1024';
+    } else {
+      dallE3Size = size;
+    }
 
-    // Campos opcionais (somente se fornecidos)
-    if (background) opts.background = background;       // transparente → PNG
-    if (quality === 'high') opts.quality = 'high';
+    const opts = {
+      model: 'dall-e-3', // Latest DALL-E 3 model
+      prompt,
+      size: dallE3Size,
+      quality: quality === 'high' ? 'hd' : 'standard', // DALL-E 3 uses 'hd' instead of 'high'
+      style: style || 'vivid', // 'vivid' for more saturated, 'natural' for more realistic
+      n: 1, // DALL-E 3 only supports n=1
+    };
 
     const result = await openai.images.generate(opts);
 
-    // Convertemos base64 -> data URL para seu front continuar usando `url`
-    const b64 = result.data?.[0]?.b64_json;
-    if (!b64) {
-      // Fallback: se não tiver b64_json, tenta URL (compatibilidade)
-      const url = result.data?.[0]?.url;
-      if (url) {
-        return res.json({ url });
-      }
+    // DALL-E 3 returns URL directly (no b64_json option)
+    const imageUrl = result.data?.[0]?.url;
+    if (!imageUrl) {
       return res.status(502).json({ error: 'No image returned' });
     }
 
-    const url = `data:image/png;base64,${b64}`;
-    return res.json({ url });
+    // For DALL-E 3, we return the URL directly
+    // Optionally, we could fetch and convert to base64 if needed
+    return res.json({ url: imageUrl });
   } catch (error) {
     console.error('OpenAI error:', error?.response?.data || error);
     res.status(500).json({
@@ -563,7 +568,7 @@ app.post('/api/explain-swap', async (req, res) => {
  */
 app.post('/api/generate-base-recipe', async (req, res) => {
   try {
-    const { goal, recipeTitle, customPrompt } = req.body;
+    const { goal, recipeTitle, category, customPrompt } = req.body;
 
     if (!goal || !recipeTitle) {
       return res.status(400).json({ error: 'Goal and recipeTitle are required' });
@@ -579,9 +584,18 @@ app.post('/api/generate-base-recipe', async (req, res) => {
       general_health: 'saúde geral (nutrição balanceada, ingredientes saudáveis)',
     }[goal] || 'saúde geral';
 
+    // Category-specific instructions
+    const categoryInstructions = {
+      'Café': 'Receita para café da manhã, deve ser nutritiva e energética para começar o dia',
+      'Almoço rápido': 'Receita para almoço, deve ser completa e satisfatória',
+      'Pré/Pós‑treino': 'Receita ideal para pré ou pós-treino, rica em proteína e carboidratos',
+      'Snacks': 'Receita para lanche/snack, deve ser prática e nutritiva',
+    }[category] || '';
+
     const prompt = customPrompt || `Crie uma receita completa e saudável: "${recipeTitle}".
 
 Objetivo: ${goalDescription}
+${category ? `Categoria: ${categoryInstructions}` : ''}
 
 Requisitos:
 - Receita completa com ingredientes, quantidades, passos detalhados
@@ -590,6 +604,21 @@ Requisitos:
 - Receita prática e saborosa
 - Use ingredientes comuns e acessíveis
 - Receita deve ser otimizada para o objetivo: ${goalDescription}
+${category ? `- Receita deve ser adequada para: ${categoryInstructions}` : ''}
+- IMPORTANTE: Analise os ingredientes e identifique todas as restrições alimentares que esta receita contém.
+- Retorne um campo "restrictions" com um array das restrições detectadas.
+- Use apenas os valores exatos: "gluten", "lactose", "soy", "egg", "fish", "shellfish", "peanut", "tree_nut", "vegetarian", "vegan", "keto", "paleo"
+- Exemplos:
+  * Se contém trigo, farinha de trigo, pão, macarrão → adicione "gluten"
+  * Se contém leite, queijo, manteiga, iogurte → adicione "lactose"
+  * Se contém ovos → adicione "egg"
+  * Se contém peixe → adicione "fish"
+  * Se contém frutos do mar → adicione "shellfish"
+  * Se contém soja → adicione "soy"
+  * Se contém amendoim → adicione "peanut"
+  * Se contém castanhas, nozes, amêndoas → adicione "tree_nut"
+  * Se não contém carne mas contém ovos/laticínios → adicione "vegetarian"
+  * Se não contém nenhum produto animal → adicione "vegan"
 
 Retorne um JSON no formato:
 {
@@ -609,7 +638,8 @@ Retorne um JSON no formato:
     "protein": 25,
     "carbohydrates": 40,
     "fats": 10
-  }
+  },
+  "restrictions": ["gluten", "lactose"] // Array de restrições que a receita contém (use apenas os valores exatos listados acima)
 }`;
 
     const response = await openai.chat.completions.create({
@@ -658,6 +688,8 @@ Retorne um JSON no formato:
         carbohydrates: 0,
         fats: 0,
       },
+      restrictions: recipeData.restrictions || [], // Array of restrictions this recipe contains
+      category: category || null, // Category tag
     };
 
     res.json({

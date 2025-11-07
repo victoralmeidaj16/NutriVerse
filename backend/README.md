@@ -4,7 +4,7 @@ Backend API proxy to protect OpenAI API key and provide endpoints for the NutriV
 
 ## Features
 
-- 🖼️ **Image Generation** - DALL-E 3 integration for recipe images
+- 🖼️ **Image Generation** - gpt-image-1 integration for recipe images
 - 📝 **Recipe Parsing** - Parse recipes from text using GPT-4
 - 🖼️ **Image Recipe Parsing** - Extract recipes from images using GPT-4 Vision
 - 🔄 **Swap Generation** - Generate healthy ingredient swaps using AI
@@ -96,4 +96,3 @@ Response: { "success": true, "explanation": "..." }
 ## License
 
 Private project - All rights reserved
-

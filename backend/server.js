@@ -25,15 +25,15 @@ app.get('/health', (req, res) => {
 
 /**
  * POST /api/generate-image
- * Generate image using OpenAI Images API (DALL-E 3 - latest version)
+ * Generate image using OpenAI Images API (gpt-image-1)
  */
 app.post('/api/generate-image', async (req, res) => {
   try {
     const {
       prompt,
       size = '1024x1024',
-      quality = 'standard',      // 'standard' | 'hd' (DALL-E 3)
-      style = 'vivid',           // 'vivid' | 'natural' (DALL-E 3)
+      quality = 'standard',      // 'standard' | 'hd'
+      background = 'transparent' // 'transparent' | 'white'
     } = req.body || {};
 
     if (!prompt || typeof prompt !== 'string') {
@@ -44,37 +44,28 @@ app.post('/api/generate-image', async (req, res) => {
       return res.status(500).json({ error: 'OpenAI API key not configured' });
     }
 
-    // DALL-E 3 supports: '1024x1024', '1792x1024', '1024x1792'
-    // Map old sizes to DALL-E 3 compatible sizes
-    let dallE3Size = '1024x1024';
-    if (size === '512x512') {
-      dallE3Size = '1024x1024';
-    } else if (size === '2048x2048') {
-      dallE3Size = '1792x1024';
-    } else {
-      dallE3Size = size;
-    }
+    const allowedSizes = new Set(['1024x1024', '512x512', '256x256']);
+    const resolvedSize = allowedSizes.has(size) ? size : '1024x1024';
+    const resolvedQuality = quality === 'high' ? 'hd' : (quality === 'hd' ? 'hd' : 'standard');
+    const resolvedBackground = background === 'white' ? 'white' : 'transparent';
 
-    const opts = {
-      model: 'dall-e-3', // Latest DALL-E 3 model
+    const result = await openai.images.generate({
+      model: 'gpt-image-1',
       prompt,
-      size: dallE3Size,
-      quality: quality === 'high' ? 'hd' : 'standard', // DALL-E 3 uses 'hd' instead of 'high'
-      style: style || 'vivid', // 'vivid' for more saturated, 'natural' for more realistic
-      n: 1, // DALL-E 3 only supports n=1
-    };
+      size: resolvedSize,
+      quality: resolvedQuality,
+      background: resolvedBackground,
+      response_format: 'b64_json',
+      n: 1,
+    });
 
-    const result = await openai.images.generate(opts);
-
-    // DALL-E 3 returns URL directly (no b64_json option)
-    const imageUrl = result.data?.[0]?.url;
-    if (!imageUrl) {
+    const imageBase64 = result.data?.[0]?.b64_json;
+    if (!imageBase64) {
       return res.status(502).json({ error: 'No image returned' });
     }
 
-    // For DALL-E 3, we return the URL directly
-    // Optionally, we could fetch and convert to base64 if needed
-    return res.json({ url: imageUrl });
+    const dataUrl = `data:image/png;base64,${imageBase64}`;
+    return res.json({ url: dataUrl });
   } catch (error) {
     console.error('OpenAI error:', error?.response?.data || error);
     res.status(500).json({
@@ -732,4 +723,3 @@ app.listen(PORT, () => {
     console.warn('⚠️  WARNING: OPENAI_API_KEY not set. OpenAI features will not work.');
   }
 });
-

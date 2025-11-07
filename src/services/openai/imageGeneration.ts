@@ -1,15 +1,16 @@
 /**
  * OpenAI Image Generation Service
  * Generate images using backend API (proxy to protect API key)
+ * Uses gpt-image-1 for high-quality recipe illustrations
  */
 
 // Use environment variable or default to Render backend
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://nutriversee.onrender.com';
 
 export type GenerateImageOptions = {
-  size?: '512x512' | '1024x1024' | '2048x2048';
-  background?: 'transparent' | 'white'; // mapeado no backend
-  quality?: 'standard' | 'high';        // mapeado no backend
+  size?: '1024x1024' | '512x512' | '256x256'; // gpt-image-1 supports square sizes
+  quality?: 'standard' | 'hd';
+  background?: 'transparent' | 'white';
 };
 
 /**
@@ -25,7 +26,6 @@ export async function generateImage(
       headers: {
         'Content-Type': 'application/json',
       },
-      // mantém compatibilidade: backend trata ausência de options
       body: JSON.stringify({ prompt, ...options }),
     });
 

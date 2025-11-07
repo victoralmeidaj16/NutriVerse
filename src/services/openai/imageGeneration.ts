@@ -9,7 +9,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://nutriversee.onr
 
 export type GenerateImageOptions = {
   size?: '1024x1024' | '512x512' | '256x256'; // gpt-image-1 supports square sizes
-  quality?: 'standard' | 'hd';
+  quality?: 'low' | 'medium' | 'high' | 'auto'; // gpt-image-1 quality options
   background?: 'transparent' | 'white';
 };
 

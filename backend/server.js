@@ -32,7 +32,7 @@ app.post('/api/generate-image', async (req, res) => {
     const {
       prompt,
       size = '1024x1024',
-      quality = 'standard',      // 'standard' | 'hd'
+      quality = 'high',          // 'low' | 'medium' | 'high' | 'auto' (gpt-image-1)
       background = 'transparent' // 'transparent' | 'white'
     } = req.body || {};
 
@@ -46,7 +46,16 @@ app.post('/api/generate-image', async (req, res) => {
 
     const allowedSizes = new Set(['1024x1024', '512x512', '256x256']);
     const resolvedSize = allowedSizes.has(size) ? size : '1024x1024';
-    const resolvedQuality = quality === 'high' ? 'hd' : (quality === 'hd' ? 'hd' : 'standard');
+    
+    // Map quality values to gpt-image-1 supported values
+    let resolvedQuality = 'high'; // default
+    if (quality === 'low' || quality === 'medium' || quality === 'high' || quality === 'auto') {
+      resolvedQuality = quality;
+    } else if (quality === 'standard' || quality === 'hd') {
+      // Map old values to new ones
+      resolvedQuality = 'high';
+    }
+    
     const resolvedBackground = background === 'white' ? 'white' : 'transparent';
 
     const result = await openai.images.generate({

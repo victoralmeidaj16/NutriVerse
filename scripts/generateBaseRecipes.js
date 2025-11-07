@@ -124,7 +124,7 @@ async function generateRecipeImage(recipeTitle, category) {
       body: JSON.stringify({
         prompt,
         size: '1024x1024',
-        quality: 'standard',
+        quality: 'high',
         background: 'transparent',
       }),
     });

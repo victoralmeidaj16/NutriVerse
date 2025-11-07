@@ -39,13 +39,15 @@ npm install
    - Set Build Command to `npm install`
    - Set Start Command to `npm start`
    - Add Environment Variable: `OPENAI_API_KEY` = your OpenAI API key
-   - Get your Render URL (e.g., `https://nutriverse.onrender.com`)
+   - Get your Render URL (e.g., `https://nutriversee.onrender.com`)
    
-   Then set in your app:
-   ```bash
-   # Create .env file in root
-   EXPO_PUBLIC_API_URL=https://your-render-url.onrender.com
-   ```
+   **✅ Backend já está configurado!**
+   - URL do backend: `https://nutriversee.onrender.com`
+   - O app já está configurado para usar essa URL por padrão
+   - Para usar uma URL diferente, crie um arquivo `.env` na raiz:
+     ```bash
+     EXPO_PUBLIC_API_URL=https://sua-url.onrender.com
+     ```
    
    **Option B: Local Development**
    

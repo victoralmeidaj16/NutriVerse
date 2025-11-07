@@ -100,7 +100,7 @@ app.post('/api/parse-recipe', async (req, res) => {
     }
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
@@ -228,18 +228,20 @@ app.post('/api/generate-swaps', async (req, res) => {
     }[goal] || 'general health';
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
           content: `You are a nutrition expert that creates healthy ingredient swaps for recipes.
           Goal: ${goalDescription}
-          Return a JSON array of swaps with this structure:
-          [{
-            "originalIngredient": {"name": "original", "amount": 200, "unit": "g"},
-            "swappedIngredient": {"name": "replacement", "amount": 200, "unit": "g"},
-            "reason": "explanation of why this swap is better"
-          }]`,
+          Return a JSON object with a "swaps" array with this structure:
+          {
+            "swaps": [{
+              "originalIngredient": {"name": "original", "amount": 200, "unit": "g"},
+              "swappedIngredient": {"name": "replacement", "amount": 200, "unit": "g"},
+              "reason": "explanation of why this swap is better"
+            }]
+          }`,
         },
         {
           role: 'user',
@@ -458,7 +460,7 @@ Retorne um JSON no formato:
 }`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
@@ -534,7 +536,7 @@ app.post('/api/explain-swap', async (req, res) => {
     }
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',
@@ -643,7 +645,7 @@ Retorne um JSON no formato:
 }`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-4o',
       messages: [
         {
           role: 'system',

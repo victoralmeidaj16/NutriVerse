@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   USER_PREFERENCES: '@nutriverse:user_preferences',
   FAVORITE_RECIPES: '@nutriverse:favorite_recipes',
   RECENT_SEARCHES: '@nutriverse:recent_searches',
+  GENERATED_RECIPES_HISTORY: '@nutriverse:generated_recipes_history',
   DAILY_PROGRESS: '@nutriverse:daily_progress',
   FITZAR_IMAGE_URL: '@nutriverse:fitzar_image_url',
   FITZAR_IMAGE_TIMESTAMP: '@nutriverse:fitzar_image_timestamp',
@@ -133,6 +134,45 @@ class StorageService {
       await AsyncStorage.setItem(STORAGE_KEYS.RECENT_SEARCHES, JSON.stringify(updated));
     } catch (error) {
       console.error('Error adding recent search:', error);
+      throw error;
+    }
+  }
+
+  // Generated Recipes History
+  async getGeneratedRecipesHistory(): Promise<Recipe[]> {
+    try {
+      const value = await AsyncStorage.getItem(STORAGE_KEYS.GENERATED_RECIPES_HISTORY);
+      return value ? JSON.parse(value) : [];
+    } catch (error) {
+      console.error('Error getting generated recipes history:', error);
+      return [];
+    }
+  }
+
+  async addGeneratedRecipe(recipe: Recipe, searchQuery: string): Promise<void> {
+    try {
+      const history = await this.getGeneratedRecipesHistory();
+      const recipeWithMetadata = {
+        ...recipe,
+        searchQuery,
+        generatedAt: new Date().toISOString(),
+      };
+      // Remove if already exists (by id)
+      const filtered = history.filter(r => r.id !== recipe.id);
+      // Add to beginning and keep last 50
+      const updated = [recipeWithMetadata, ...filtered].slice(0, 50);
+      await AsyncStorage.setItem(STORAGE_KEYS.GENERATED_RECIPES_HISTORY, JSON.stringify(updated));
+    } catch (error) {
+      console.error('Error adding generated recipe:', error);
+      throw error;
+    }
+  }
+
+  async clearGeneratedRecipesHistory(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.GENERATED_RECIPES_HISTORY);
+    } catch (error) {
+      console.error('Error clearing generated recipes history:', error);
       throw error;
     }
   }

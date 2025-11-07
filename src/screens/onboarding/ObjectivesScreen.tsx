@@ -10,6 +10,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme';
 import { UserGoal } from '../../types/user';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 import type { OnboardingStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<OnboardingStackParamList, 'Objectives'>;
@@ -37,11 +38,16 @@ const GOALS: { value: UserGoal; label: string; icon: string; description: string
 
 export default function ObjectivesScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(null);
+  const { goal, setGoal } = useOnboarding();
+  const [selectedGoal, setSelectedGoal] = useState<UserGoal | null>(goal);
+
+  const handleGoalSelect = (goalValue: UserGoal) => {
+    setSelectedGoal(goalValue);
+    setGoal(goalValue);
+  };
 
   const handleNext = () => {
     if (selectedGoal) {
-      // Store selection temporarily (will be saved in Preferences screen)
       navigation.navigate('Restrictions');
     }
   };
@@ -71,7 +77,7 @@ export default function ObjectivesScreen() {
                 styles.optionCard,
                 selectedGoal === goal.value && styles.optionCardSelected,
               ]}
-              onPress={() => setSelectedGoal(goal.value)}
+              onPress={() => handleGoalSelect(goal.value)}
               activeOpacity={0.8}
             >
               <View

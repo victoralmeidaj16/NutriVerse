@@ -3,7 +3,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Modal, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -46,17 +46,21 @@ export default function ExploreScreen() {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [autocompleteSuggestions, setAutocompleteSuggestions] = useState<string[]>([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [generatingRecipe, setGeneratingRecipe] = useState(false);
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [activeTab, setActiveTab] = useState<'original' | 'lean' | 'high_protein' | 'budget'>('original');
   const [activeVariant, setActiveVariant] = useState<RecipeVariant | null>(null);
   const [savedRecipes, setSavedRecipes] = useState<Recipe[]>([]);
   const [recommendedRecipes, setRecommendedRecipes] = useState<Recipe[]>([]);
+  const [generatedRecipesHistory, setGeneratedRecipesHistory] = useState<Recipe[]>([]);
 
   useEffect(() => {
     loadRecentSearches();
     loadSavedRecipes();
     loadRecommendedRecipes();
+    loadGeneratedRecipesHistory();
     
     // Check if we should focus search from navigation params
     const params = (route.params as any) || {};
@@ -69,6 +73,16 @@ export default function ExploreScreen() {
       setSearchQuery(params.initialQuery);
     }
   }, []);
+
+  // Reload data when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadSavedRecipes();
+      loadRecommendedRecipes();
+      loadGeneratedRecipesHistory();
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   // Autocomplete logic
   useEffect(() => {
@@ -90,19 +104,49 @@ export default function ExploreScreen() {
   };
 
   const loadSavedRecipes = async () => {
-    // Load saved recipes from storage
-    // For now, using mock data - in production, fetch from Firebase
+    // Load favorite recipes from history
     const favoriteIds = await storageService.getFavoriteRecipes();
-    // Mock saved recipes - in production, fetch actual recipes by IDs
-    const mockSaved: Recipe[] = [];
-    setSavedRecipes(mockSaved);
+    const history = await storageService.getGeneratedRecipesHistory();
+    const favorites = history.filter(r => favoriteIds.includes(r.id));
+    setSavedRecipes(favorites);
   };
 
   const loadRecommendedRecipes = async () => {
-    // Load recommended recipes based on user history
-    // For now, using mock data - in production, use ML/AI recommendations
-    const mockRecommended: Recipe[] = [];
-    setRecommendedRecipes(mockRecommended);
+    // Load recommended recipes based on favorites and last 5 searches
+    const favoriteIds = await storageService.getFavoriteRecipes();
+    const recentSearches = await storageService.getRecentSearches();
+    const history = await storageService.getGeneratedRecipesHistory();
+    
+    // Get last 5 search queries
+    const last5Searches = recentSearches.slice(0, 5);
+    
+    // Find recipes that match favorites or recent searches
+    const recommended: Recipe[] = [];
+    
+    // Add recipes from favorites
+    const favoriteRecipes = history.filter(r => favoriteIds.includes(r.id));
+    recommended.push(...favoriteRecipes.slice(0, 3));
+    
+    // Add recipes from recent searches (last 5)
+    const searchBasedRecipes = history.filter(r => {
+      const recipeSearchQuery = (r as any).searchQuery || '';
+      return last5Searches.some(search => 
+        recipeSearchQuery.toLowerCase().includes(search.toLowerCase()) ||
+        r.original.title.toLowerCase().includes(search.toLowerCase())
+      );
+    });
+    
+    // Remove duplicates and limit to 10
+    const uniqueRecommended = Array.from(
+      new Map([...recommended, ...searchBasedRecipes].map(r => [r.id, r])).values()
+    ).slice(0, 10);
+    
+    setRecommendedRecipes(uniqueRecommended);
+  };
+
+  const loadGeneratedRecipesHistory = async () => {
+    const history = await storageService.getGeneratedRecipesHistory();
+    setGeneratedRecipesHistory(history);
   };
 
   const handleSavedRecipePress = (savedRecipe: Recipe) => {
@@ -115,29 +159,57 @@ export default function ExploreScreen() {
   };
 
   const handleSearch = async () => {
-    if (searchQuery.trim()) {
-      setShowAutocomplete(false);
-      await storageService.addRecentSearch(searchQuery);
-      await loadRecentSearches();
+    if (!searchQuery.trim()) return;
+    
+    setShowAutocomplete(false);
+    setIsSearchFocused(false);
+    searchInputRef.current?.blur();
+    
+    await storageService.addRecentSearch(searchQuery);
+    await loadRecentSearches();
+    
+    // Navigate to loading screen that will generate the recipe
+    setGeneratingRecipe(true);
+    
+    try {
+      // Get user preferences from Firebase
+      const { getOnboardingData } = await import('../../services/user/onboardingService');
+      const onboardingData = await getOnboardingData();
+      const goal = onboardingData?.goal || 'general_health';
+      const restrictions = onboardingData?.restrictions || [];
       
-      // Process recipe transformation directly
-      setLoading(true);
-      try {
-        const userPreferences = await storageService.getUserPreferences();
-        const goal = userPreferences?.goal || 'general_health';
-        
-        const transformedRecipe = await transformRecipe(searchQuery, goal, userPreferences || undefined);
-        setRecipe(transformedRecipe);
-        
-        if (transformedRecipe.variants.length > 0) {
-          const firstVariant = transformedRecipe.variants.find(v => v.id === activeTab) || transformedRecipe.variants[0];
-          setActiveTab(firstVariant.id as any);
-        }
-      } catch (error) {
-        console.error('Error transforming recipe:', error);
-      } finally {
-        setLoading(false);
+      // Parse recipe from text using OpenAI
+      const { parseRecipeFromText } = await import('../../services/openai/openaiService');
+      const parsedRecipe = await parseRecipeFromText(searchQuery);
+      
+      // Transform recipe with user's goal and restrictions
+      const transformedRecipe = await transformRecipe(searchQuery, goal, {
+        goal,
+        restrictions,
+      });
+      
+      // Update the parsed recipe title if available
+      if (parsedRecipe.title) {
+        transformedRecipe.original.title = parsedRecipe.title;
       }
+      
+      // Save to history
+      await storageService.addGeneratedRecipe(transformedRecipe, searchQuery);
+      await loadGeneratedRecipesHistory();
+      await loadRecommendedRecipes();
+      
+      setRecipe(transformedRecipe);
+      
+      if (transformedRecipe.variants.length > 0) {
+        const firstVariant = transformedRecipe.variants.find(v => v.id === activeTab) || transformedRecipe.variants[0];
+        setActiveVariant(firstVariant);
+        setActiveTab(firstVariant.id as any);
+      }
+    } catch (error) {
+      console.error('Error generating recipe:', error);
+      Alert.alert('Erro', 'Não foi possível gerar a receita. Tente novamente.');
+    } finally {
+      setGeneratingRecipe(false);
     }
   };
 
@@ -172,31 +244,68 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Dark Overlay when search is focused */}
+      {isSearchFocused && (
+        <TouchableOpacity
+          style={styles.darkOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setIsSearchFocused(false);
+            searchInputRef.current?.blur();
+          }}
+        />
+      )}
+
+      {/* Loading Modal for Recipe Generation */}
+      <Modal
+        visible={generatingRecipe}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.loadingModalContainer}>
+          <View style={styles.loadingModalContent}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingModalTitle}>Gerando receita</Text>
+            <Text style={styles.loadingModalSubtitle}>
+              Alinhando aos seus objetivos...
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
-        <Text style={styles.title}>Explorar</Text>
+        <Text style={styles.title}>Ações</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
         {/* Search Input */}
         <View style={styles.searchContainer}>
-          <View style={styles.searchInputWrapper}>
-            <View style={styles.searchInputContainer}>
-              <Ionicons name="search-outline" size={20} color={colors.text.quaternary} />
+          <View style={[styles.searchInputWrapper, isSearchFocused && styles.searchInputWrapperFocused]}>
+            <View style={[styles.searchInputContainer, isSearchFocused && styles.searchInputContainerFocused]}>
+              <Ionicons name="search-outline" size={20} color={isSearchFocused ? colors.primary : colors.text.quaternary} />
               <TextInput
                 ref={searchInputRef}
                 style={styles.searchInput}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder="Cole a receita, link ou texto que você quer fitzar..."
+                placeholder="Digite a receita, prato ou comida que você quer fitzar..."
                 placeholderTextColor={colors.text.quaternary}
                 onSubmitEditing={handleSearch}
                 returnKeyType="search"
+                autoCorrect={false}
+                autoCapitalize="none"
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => {
+                  // Delay to allow autocomplete clicks
+                  setTimeout(() => setIsSearchFocused(false), 200);
+                }}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => {
                   setSearchQuery('');
                   setRecipe(null);
                   setShowAutocomplete(false);
+                  searchInputRef.current?.focus();
                 }}>
                   <Ionicons name="close-circle" size={20} color={colors.text.quaternary} />
                 </TouchableOpacity>
@@ -204,16 +313,19 @@ export default function ExploreScreen() {
             </View>
             
             {/* Autocomplete Suggestions */}
-            {showAutocomplete && autocompleteSuggestions.length > 0 && (
+            {showAutocomplete && autocompleteSuggestions.length > 0 && isSearchFocused && (
               <View style={styles.autocompleteContainer}>
-                {autocompleteSuggestions.map((suggestion, index) => (
+                {autocompleteSuggestions.map((item, index) => (
                   <TouchableOpacity
-                    key={index}
-                    style={styles.autocompleteItem}
-                    onPress={() => handleAutocompleteSelect(suggestion)}
+                    key={`suggestion-${index}`}
+                    style={[
+                      styles.autocompleteItem,
+                      index === autocompleteSuggestions.length - 1 && styles.autocompleteItemLast
+                    ]}
+                    onPress={() => handleAutocompleteSelect(item)}
                   >
-                    <Ionicons name="search-outline" size={16} color={colors.text.quaternary} />
-                    <Text style={styles.autocompleteText}>{suggestion}</Text>
+                    <Ionicons name="search-outline" size={18} color={colors.text.quaternary} />
+                    <Text style={styles.autocompleteText}>{item}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -231,23 +343,76 @@ export default function ExploreScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity
-            style={styles.quickActionButton}
-            onPress={handlePhotoPress}
-          >
-            <Ionicons name="camera-outline" size={24} color={colors.primary} />
-            <Text style={styles.quickActionLabel}>Foto do prato</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickActionButton}
-            onPress={() => navigation.navigate('PantryModeModal')}
-          >
-            <Ionicons name="cube-outline" size={24} color={colors.primary} />
-            <Text style={styles.quickActionLabel}>Modo Despensa</Text>
-          </TouchableOpacity>
-        </View>
+        {/* Scrollable Content */}
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+
+        {/* Modo Despensa Card */}
+        <TouchableOpacity
+          style={styles.pantryCard}
+          onPress={() => navigation.navigate('PantryModeModal')}
+          activeOpacity={0.9}
+        >
+          <View style={styles.pantryCardContent}>
+            <View style={styles.pantryCardHeader}>
+              <View style={styles.pantryCardIconContainer}>
+                <Ionicons name="cube-outline" size={32} color={colors.primary} />
+              </View>
+              <View style={styles.pantryCardTextContainer}>
+                <Text style={styles.pantryCardTitle}>Modo Despensa</Text>
+                <Text style={styles.pantryCardSubtitle}>
+                  Receitas com o que você tem em casa
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={colors.text.quaternary} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Generated Recipes History */}
+        {generatedRecipesHistory.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Histórico de receitas geradas</Text>
+            <FlatList
+              data={generatedRecipesHistory}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.horizontalList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.historyRecipeCard}
+                  onPress={() => handleSavedRecipePress(item)}
+                >
+                  <View style={styles.historyRecipeHeader}>
+                    <Ionicons name="time-outline" size={16} color={colors.text.quaternary} />
+                    <Text style={styles.historyRecipeDate}>
+                      {(item as any).generatedAt ? new Date((item as any).generatedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.historyRecipeTitle} numberOfLines={2}>
+                    {item.original.title}
+                  </Text>
+                  {item.variants[0] && (
+                    <View style={styles.historyRecipeNutrition}>
+                      <Text style={styles.historyRecipeKcal}>
+                        {Math.round(item.variants[0].nutrition.calories)} kcal
+                      </Text>
+                    </View>
+                  )}
+                  {(item as any).searchQuery && (
+                    <Text style={styles.historyRecipeQuery} numberOfLines={1}>
+                      "{((item as any).searchQuery || '').substring(0, 30)}..."
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </>
+        )}
 
         {/* Saved Recipes */}
         {savedRecipes.length > 0 && (
@@ -277,38 +442,49 @@ export default function ExploreScreen() {
           </>
         )}
 
-        {/* Recommended Recipes */}
+        {/* Suggested Recipes (based on favorites and last 5 searches) */}
         {recommendedRecipes.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Receitas recomendadas</Text>
+            <Text style={styles.sectionTitle}>Sugestões para você</Text>
+            <Text style={styles.sectionSubtitle}>
+              Baseado nos seus favoritos e últimas pesquisas
+            </Text>
             <FlatList
               data={recommendedRecipes}
               horizontal
               showsHorizontalScrollIndicator={false}
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.horizontalList}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.recommendedRecipeCard}
-                  onPress={() => handleSavedRecipePress(item)}
-                >
-                  {item.original.imageUrl && (
-                    <View style={styles.recommendedRecipeImage}>
-                      <Ionicons name="restaurant-outline" size={32} color={colors.text.quaternary} />
-                    </View>
-                  )}
-                  <Text style={styles.recommendedRecipeTitle} numberOfLines={2}>
-                    {item.original.title}
-                  </Text>
-                  {item.variants[0] && (
-                    <View style={styles.recommendedRecipeNutrition}>
-                      <Text style={styles.recommendedRecipeKcal}>
-                        {Math.round(item.variants[0].nutrition.calories)} kcal
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              )}
+              renderItem={({ item }) => {
+                const isFavorite = savedRecipes.some(r => r.id === item.id);
+                return (
+                  <TouchableOpacity
+                    style={styles.recommendedRecipeCard}
+                    onPress={() => handleSavedRecipePress(item)}
+                  >
+                    {isFavorite && (
+                      <View style={styles.favoriteBadge}>
+                        <Ionicons name="heart" size={14} color={colors.primary} />
+                      </View>
+                    )}
+                    {item.original.imageUrl && (
+                      <View style={styles.recommendedRecipeImage}>
+                        <Ionicons name="restaurant-outline" size={32} color={colors.text.quaternary} />
+                      </View>
+                    )}
+                    <Text style={styles.recommendedRecipeTitle} numberOfLines={2}>
+                      {item.original.title}
+                    </Text>
+                    {item.variants[0] && (
+                      <View style={styles.recommendedRecipeNutrition}>
+                        <Text style={styles.recommendedRecipeKcal}>
+                          {Math.round(item.variants[0].nutrition.calories)} kcal
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
             />
           </>
         )}
@@ -408,14 +584,21 @@ export default function ExploreScreen() {
                 <View style={styles.ctaRow}>
                   <TouchableOpacity
                     style={styles.ctaButton}
+                    onPress={() => navigation.navigate('RecipeDetailModal', {
+                      recipeId: recipe.id,
+                      recipe: activeVariant.recipe,
+                      nutrition: activeVariant.nutrition,
+                    })}
+                  >
+                    <Ionicons name="restaurant-outline" size={18} color={colors.buttonText} />
+                    <Text style={styles.ctaButtonText}>Ver receita completa</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.ctaButtonSecondary}
                     onPress={() => navigation.navigate('CookingModeModal', { recipeId: recipe.id, variantId: activeVariant.id })}
                   >
-                    <Ionicons name="flash-outline" size={18} color={colors.buttonText} />
-                    <Text style={styles.ctaButtonText}>Cozinhar agora</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.ctaSecondary}>
-                    <Ionicons name="add-circle-outline" size={18} color={colors.text.primary} />
-                    <Text style={styles.ctaSecondaryText}>Adicionar ao plano</Text>
+                    <Ionicons name="flash-outline" size={18} color={colors.primary} />
+                    <Text style={styles.ctaButtonSecondaryText}>Modo cozinhar</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -432,7 +615,8 @@ export default function ExploreScreen() {
             </Text>
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -441,6 +625,44 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  darkOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 5,
+  },
+  loadingModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingModalContent: {
+    backgroundColor: colors.card,
+    borderRadius: 24,
+    padding: spacing['2xl'],
+    alignItems: 'center',
+    gap: spacing.md,
+    minWidth: 280,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 16,
+  },
+  loadingModalTitle: {
+    ...typography.styles.h3,
+    color: colors.text.primary,
+    textAlign: 'center',
+  },
+  loadingModalSubtitle: {
+    ...typography.styles.body,
+    color: colors.text.secondary,
+    textAlign: 'center',
   },
   header: {
     paddingHorizontal: spacing.base,
@@ -452,15 +674,66 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   content: {
+    flex: 1,
     paddingHorizontal: spacing.base,
+  },
+  scrollContent: {
     paddingBottom: spacing['3xl'],
   },
   searchContainer: {
     marginBottom: spacing.lg,
   },
+  pantryCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  pantryCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pantryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: spacing.md,
+  },
+  pantryCardIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    backgroundColor: colors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pantryCardTextContainer: {
+    flex: 1,
+  },
+  pantryCardTitle: {
+    ...typography.styles.h3,
+    color: colors.text.primary,
+    marginBottom: spacing.xs,
+  },
+  pantryCardSubtitle: {
+    ...typography.styles.body,
+    color: colors.text.secondary,
+    fontSize: 14,
+  },
   searchInputWrapper: {
-    position: 'relative',
     marginBottom: spacing.md,
+    zIndex: 10,
+  },
+  searchInputWrapperFocused: {
+    zIndex: 20,
   },
   searchInputContainer: {
     flexDirection: 'row',
@@ -468,30 +741,36 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 16,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.border,
     gap: spacing.sm,
-    height: 56,
+    minHeight: 56,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  searchInputContainerFocused: {
+    borderColor: colors.primary,
+    borderWidth: 2,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
   searchInput: {
     flex: 1,
-    ...typography.styles.body,
+    fontSize: 16,
+    fontWeight: typography.fontWeight.regular,
     color: colors.text.primary,
-    paddingTop: 0,
-    paddingBottom: 0,
-    paddingVertical: 0,
+    paddingVertical: spacing.md,
+    paddingHorizontal: 0,
+    margin: 0,
+    textAlignVertical: 'center',
   },
   autocompleteContainer: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
     backgroundColor: colors.card,
     borderRadius: 16,
     borderWidth: 1,
@@ -499,22 +778,27 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 8,
-    zIndex: 1000,
-    maxHeight: 200,
+    maxHeight: 300,
+    overflow: 'hidden',
   },
   autocompleteItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.borderSoft,
+  },
+  autocompleteItemLast: {
+    borderBottomWidth: 0,
   },
   autocompleteText: {
-    ...typography.styles.body,
+    fontSize: 15,
+    fontWeight: typography.fontWeight.regular,
     color: colors.text.primary,
     flex: 1,
   },
@@ -560,6 +844,11 @@ const styles = StyleSheet.create({
     ...typography.styles.h4,
     color: colors.text.primary,
     marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  sectionSubtitle: {
+    ...typography.styles.small,
+    color: colors.text.quaternary,
     marginBottom: spacing.md,
   },
   recentSearches: {
@@ -701,21 +990,21 @@ const styles = StyleSheet.create({
     ...typography.styles.bodySemibold,
     color: colors.buttonText,
   },
-  ctaSecondary: {
+  ctaButtonSecondary: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: colors.primary,
     paddingVertical: spacing.md,
-    borderRadius: 12,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    backgroundColor: colors.card,
   },
-  ctaSecondaryText: {
+  ctaButtonSecondaryText: {
     ...typography.styles.bodySemibold,
-    color: colors.text.primary,
+    color: colors.primary,
   },
   emptyState: {
     alignItems: 'center',
@@ -792,6 +1081,58 @@ const styles = StyleSheet.create({
   recommendedRecipeKcal: {
     ...typography.styles.smallSemibold,
     color: colors.primary,
+  },
+  historyRecipeCard: {
+    width: 180,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  historyRecipeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  historyRecipeDate: {
+    ...typography.styles.caption,
+    color: colors.text.quaternary,
+  },
+  historyRecipeTitle: {
+    ...typography.styles.bodySemibold,
+    color: colors.text.primary,
+    marginTop: spacing.xs,
+  },
+  historyRecipeNutrition: {
+    marginTop: spacing.xs,
+  },
+  historyRecipeKcal: {
+    ...typography.styles.smallSemibold,
+    color: colors.primary,
+  },
+  historyRecipeQuery: {
+    ...typography.styles.caption,
+    color: colors.text.quaternary,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
+  },
+  favoriteBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.primaryLight,
+    zIndex: 1,
   },
 });
 

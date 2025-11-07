@@ -9,7 +9,10 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme';
-import storageService from '../services/storage/storage';
+import { auth } from '../config/firebase';
+import { firebaseAuth } from '../services/firebase/firebaseService';
+import { isOnboardingComplete } from '../services/user/onboardingService';
+import { User } from 'firebase/auth';
 
 // Screens (will be created)
 import RecipesScreen from '../screens/recipes/RecipesScreen';
@@ -20,8 +23,8 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
 import ObjectivesScreen from '../screens/onboarding/ObjectivesScreen';
 import RestrictionsScreen from '../screens/onboarding/RestrictionsScreen';
-import PreferencesScreen from '../screens/onboarding/PreferencesScreen';
-import HealthConnectScreen from '../screens/onboarding/HealthConnectScreen';
+import SignUpScreen from '../screens/auth/SignUpScreen';
+import LoginScreen from '../screens/auth/LoginScreen';
 
 // Modals
 import FitSwapScreen from '../screens/fitswap/FitSwapScreen';
@@ -29,32 +32,36 @@ import CookingModeScreen from '../screens/cooking/CookingModeScreen';
 import PreferencesModalScreen from '../screens/profile/PreferencesScreen';
 import GoalsScreen from '../screens/profile/GoalsScreen';
 import PantryModeScreen from '../screens/pantry/PantryModeScreen';
-import WeeklyPlanScreen from '../screens/planning/WeeklyPlanScreen';
 import RecipesHomeScreen from '../screens/recipes/RecipesHomeScreen';
 import RecipeDetailScreen from '../screens/recipes/RecipeDetailScreen';
 import AIGeneratedRecipeScreen from '../screens/recipes/AIGeneratedRecipeScreen';
 
 import type { RootStackParamList, OnboardingStackParamList, MainTabsParamList } from './types';
 
+import { OnboardingProvider } from '../contexts/OnboardingContext';
+
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const OnboardingStack = createNativeStackNavigator<OnboardingStackParamList>();
 const MainTabs = createBottomTabNavigator<MainTabsParamList>();
 
 // Onboarding Navigator
+
 function OnboardingNavigator() {
   return (
-    <OnboardingStack.Navigator
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.background },
-      }}
-    >
-      <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
-      <OnboardingStack.Screen name="Objectives" component={ObjectivesScreen} />
-      <OnboardingStack.Screen name="Restrictions" component={RestrictionsScreen} />
-      <OnboardingStack.Screen name="Preferences" component={PreferencesScreen} />
-      <OnboardingStack.Screen name="HealthConnect" component={HealthConnectScreen} />
-    </OnboardingStack.Navigator>
+    <OnboardingProvider>
+      <OnboardingStack.Navigator
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+        }}
+      >
+        <OnboardingStack.Screen name="Welcome" component={WelcomeScreen} />
+        <OnboardingStack.Screen name="Objectives" component={ObjectivesScreen} />
+        <OnboardingStack.Screen name="Restrictions" component={RestrictionsScreen} />
+        <OnboardingStack.Screen name="SignUp" component={SignUpScreen} />
+        <OnboardingStack.Screen name="Login" component={LoginScreen} />
+      </OnboardingStack.Navigator>
+    </OnboardingProvider>
   );
 }
 
@@ -116,28 +123,74 @@ function MainTabsNavigator() {
 
 // Root Navigator
 export default function AppNavigator() {
-  const [isOnboardingComplete, setIsOnboardingComplete] = useState<boolean | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigationRef = useNavigationContainerRef<RootStackParamList>();
 
-  const checkOnboardingStatus = useCallback(async () => {
-    const complete = await storageService.getOnboardingComplete();
-    setIsOnboardingComplete(complete);
+  const checkAuthAndOnboarding = useCallback(async () => {
+    try {
+      const currentUser = auth.currentUser;
+      console.log('Checking auth and onboarding, user:', currentUser?.uid || 'null');
+      setUser(currentUser);
+
+      if (currentUser) {
+        const complete = await isOnboardingComplete();
+        console.log('Onboarding complete status:', complete);
+        setOnboardingComplete(complete);
+      } else {
+        console.log('No user, setting onboardingComplete to false');
+        setOnboardingComplete(false);
+      }
+    } catch (error) {
+      console.error('Error checking auth/onboarding:', error);
+      setOnboardingComplete(false);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    checkOnboardingStatus();
-  }, [checkOnboardingStatus]);
+    checkAuthAndOnboarding();
+
+    // Listen to auth state changes
+    const unsubscribe = firebaseAuth.onAuthStateChanged(async (authUser) => {
+      console.log('Auth state changed, user:', authUser?.uid || 'null');
+      setUser(authUser);
+      if (authUser) {
+        const complete = await isOnboardingComplete();
+        console.log('Onboarding complete status (from listener):', complete);
+        setOnboardingComplete(complete);
+      } else {
+        console.log('User logged out, setting onboardingComplete to false');
+        setOnboardingComplete(false);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [checkAuthAndOnboarding]);
 
   // Re-check onboarding status periodically when not complete
-  // This allows the app to detect when onboarding finishes
   useEffect(() => {
-    if (isOnboardingComplete === false) {
-      const interval = setInterval(() => {
-        checkOnboardingStatus();
-      }, 500); // Check every 500ms while onboarding is in progress
+    if (user && onboardingComplete === false) {
+      console.log('Setting up interval to check onboarding status');
+      const interval = setInterval(async () => {
+        const complete = await isOnboardingComplete();
+        console.log('Periodic check - onboarding complete:', complete);
+        if (complete) {
+          setOnboardingComplete(complete);
+        }
+      }, 500);
       return () => clearInterval(interval);
     }
-  }, [isOnboardingComplete, checkOnboardingStatus]);
+  }, [user, onboardingComplete]);
+
+  console.log('AppNavigator render - user:', user?.uid || 'null', 'onboardingComplete:', onboardingComplete, 'loading:', loading);
+
+  if (loading) {
+    return null; // Or a loading screen
+  }
 
   return (
     <NavigationContainer ref={navigationRef}>
@@ -147,11 +200,17 @@ export default function AppNavigator() {
           contentStyle: { backgroundColor: colors.background },
         }}
       >
-        {!isOnboardingComplete ? (
+        {!user ? (
+          // Not authenticated - show Welcome first (onboarding)
+          <RootStack.Screen name="OnboardingStack" component={OnboardingNavigator} />
+        ) : !onboardingComplete ? (
+          // Authenticated but onboarding not complete
           <RootStack.Screen name="OnboardingStack" component={OnboardingNavigator} />
         ) : (
+          // Authenticated and onboarding complete - show main app
           <>
             <RootStack.Screen name="MainTabs" component={MainTabsNavigator} />
+            <RootStack.Screen name="Login" component={LoginScreen} />
             <RootStack.Group
               screenOptions={{
                 presentation: 'modal',
@@ -163,7 +222,6 @@ export default function AppNavigator() {
               <RootStack.Screen name="PantryModeModal" component={PantryModeScreen} />
               <RootStack.Screen name="PreferencesModal" component={PreferencesModalScreen} />
               <RootStack.Screen name="GoalsModal" component={GoalsScreen} />
-              <RootStack.Screen name="WeeklyPlanModal" component={WeeklyPlanScreen} />
               <RootStack.Screen name="RecipesHomeModal" component={RecipesHomeScreen} />
               <RootStack.Screen name="RecipeDetailModal" component={RecipeDetailScreen} />
               <RootStack.Screen name="AIGeneratedRecipeModal" component={AIGeneratedRecipeScreen} />

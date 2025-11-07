@@ -3,6 +3,9 @@
  */
 
 export type RootStackParamList = {
+  AuthStack: undefined;
+  Login: undefined;
+  SignUp: undefined;
   OnboardingStack: undefined;
   MainTabs: undefined;
   FitSwapModal?: { inputType?: 'text' | 'photo' | 'link'; initialValue?: string };
@@ -11,7 +14,6 @@ export type RootStackParamList = {
   PantryModeModal?: undefined;
   PreferencesModal?: undefined;
   GoalsModal?: undefined;
-  WeeklyPlanModal?: undefined;
   RecipesHomeModal?: undefined;
   AIGeneratedRecipeModal?: undefined;
 };
@@ -20,8 +22,8 @@ export type OnboardingStackParamList = {
   Welcome: undefined;
   Objectives: undefined;
   Restrictions: undefined;
-  Preferences: undefined;
-  HealthConnect: undefined;
+  SignUp: undefined;
+  Login: undefined;
 };
 
 export type MainTabsParamList = {

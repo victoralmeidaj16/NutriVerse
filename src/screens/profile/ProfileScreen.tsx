@@ -3,16 +3,20 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { colors, typography, spacing } from '../../theme';
 import MacroRing from '../../components/MacroRing';
 import { getUserWithTargets, getDailyProgress } from '../../services/user/userService';
 import { UserProfile } from '../../types/user';
 import { MacroTargets, DailyProgress } from '../../types/nutrition';
+import { firebaseAuth } from '../../services/firebase/firebaseService';
+import { firebaseService, firebaseStorage } from '../../services/firebase/firebaseService';
+import { auth } from '../../config/firebase';
 import type { RootStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -25,6 +29,8 @@ export default function ProfileScreen() {
   const [dailyProgress, setDailyProgress] = useState<DailyProgress | null>(null);
   const [points, setPoints] = useState(1250);
   const [level, setLevel] = useState(5);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [badges, setBadges] = useState([
     { id: '1', name: 'Primeiro passo', icon: 'footsteps', unlocked: true },
     { id: '2', name: 'Semana completa', icon: 'calendar', unlocked: true },
@@ -35,7 +41,19 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     loadData();
+    requestImagePermissions();
   }, []);
+
+  const requestImagePermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      console.warn('Media library permission not granted');
+    }
+    const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
+    if (cameraStatus !== 'granted') {
+      console.warn('Camera permission not granted');
+    }
+  };
 
   const loadData = async () => {
     const { profile: userProfile, tdee: userTdee, macroTargets: targets } = await getUserWithTargets();
@@ -44,6 +62,148 @@ export default function ProfileScreen() {
     setTdee(userTdee);
     setMacroTargets(targets);
     setDailyProgress(progress);
+    
+    // Load profile image
+    const user = auth.currentUser;
+    if (user) {
+      const profileData = await firebaseService.getData(`users/${user.uid}/profile`);
+      if (profileData?.profileImageUrl) {
+        setProfileImageUrl(profileData.profileImageUrl);
+      }
+    }
+  };
+
+  const handleChangeProfileImage = () => {
+    Alert.alert(
+      'Alterar foto de perfil',
+      'Escolha uma opção',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Câmera',
+          onPress: () => pickImageFromCamera(),
+        },
+        {
+          text: 'Galeria',
+          onPress: () => pickImageFromGallery(),
+        },
+      ]
+    );
+  };
+
+  const pickImageFromGallery = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image from gallery:', error);
+      Alert.alert('Erro', 'Não foi possível selecionar a imagem.');
+    }
+  };
+
+  const pickImageFromCamera = async () => {
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        await uploadProfileImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error taking photo:', error);
+      Alert.alert('Erro', 'Não foi possível tirar a foto.');
+    }
+  };
+
+  const uploadProfileImage = async (imageUri: string) => {
+    const user = auth.currentUser;
+    if (!user) {
+      Alert.alert('Erro', 'Você precisa estar logado para alterar a foto de perfil.');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      // Convert image to base64 first, then to Uint8Array for React Native compatibility
+      const response = await fetch(imageUri);
+      const blob = await response.blob();
+      
+      // Convert blob to array buffer, then to Uint8Array
+      const arrayBuffer = await blob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      // Upload to Firebase Storage
+      const fileName = `profile_images/${user.uid}_${Date.now()}.jpg`;
+      const downloadURL = await firebaseStorage.uploadFile(fileName, uint8Array, {
+        contentType: 'image/jpeg',
+      });
+
+      // Save URL to user profile in Firebase Database
+      const profilePath = `users/${user.uid}/profile`;
+      const existingProfile = await firebaseService.getData(profilePath) || {};
+      
+      await firebaseService.updateData(profilePath, {
+        ...existingProfile,
+        profileImageUrl: downloadURL,
+        updatedAt: new Date().toISOString(),
+      });
+
+      setProfileImageUrl(downloadURL);
+      Alert.alert('Sucesso', 'Foto de perfil atualizada com sucesso!');
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      Alert.alert('Erro', 'Não foi possível fazer upload da imagem. Tente novamente.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Sair',
+      'Tem certeza que deseja sair da sua conta?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Sair',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Clear onboarding status in Firebase
+              const user = auth.currentUser;
+              if (user) {
+                await firebaseService.setData(`users/${user.uid}/onboardingComplete`, false);
+              }
+              
+              // Sign out
+              await firebaseAuth.signOut();
+              // Navigation will be handled by AppNavigator based on auth state
+            } catch (error) {
+              console.error('Error logging out:', error);
+              Alert.alert('Erro', 'Não foi possível sair. Tente novamente.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -55,14 +215,35 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* User Info */}
         <View style={styles.userCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>
-              {profile?.name?.charAt(0).toUpperCase() || 'U'}
-            </Text>
+          <TouchableOpacity
+            style={styles.avatarContainer}
+            onPress={handleChangeProfileImage}
+            disabled={uploadingImage}
+            activeOpacity={0.8}
+          >
+            {uploadingImage ? (
+              <View style={styles.avatar}>
+                <ActivityIndicator size="large" color={colors.buttonText} />
+              </View>
+            ) : profileImageUrl ? (
+              <Image
+                source={{ uri: profileImageUrl }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {profile?.name?.charAt(0).toUpperCase() || 'U'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.avatarEditButton}>
+              <Ionicons name="camera" size={16} color={colors.buttonText} />
+            </View>
             <View style={styles.levelBadge}>
               <Text style={styles.levelText}>Nível {level}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
           <Text style={styles.userName}>{profile?.name || 'Usuário'}</Text>
           {profile?.email && (
             <Text style={styles.userEmail}>{profile.email}</Text>
@@ -165,7 +346,7 @@ export default function ProfileScreen() {
             style={styles.settingItem}
             onPress={() => navigation.navigate('GoalsModal')}
           >
-            <Ionicons name="target-outline" size={24} color={colors.primary} />
+            <Ionicons name="flag-outline" size={24} color={colors.primary} />
             <View style={styles.settingContent}>
               <Text style={styles.settingTitle}>Metas e objetivos</Text>
               <Text style={styles.settingSubtitle}>Ajustar TDEE e macros</Text>
@@ -181,6 +362,18 @@ export default function ProfileScreen() {
             <View style={styles.settingContent}>
               <Text style={styles.settingTitle}>Preferências</Text>
               <Text style={styles.settingSubtitle}>Restrições e configurações</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.text.quaternary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.settingItem, styles.logoutItem]}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out-outline" size={24} color={colors.state.error} />
+            <View style={styles.settingContent}>
+              <Text style={[styles.settingTitle, styles.logoutText]}>Sair</Text>
+              <Text style={styles.settingSubtitle}>Desconectar da conta</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.text.quaternary} />
           </TouchableOpacity>
@@ -212,6 +405,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.xl,
   },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: spacing.md,
+  },
   avatar: {
     width: 80,
     height: 80,
@@ -219,17 +416,41 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: spacing.md,
-    position: 'relative',
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.neutral.light1,
   },
   avatarText: {
     ...typography.styles.h1,
-    color: colors.button,
+    color: colors.buttonText,
     fontSize: 32,
+  },
+  avatarEditButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    borderWidth: 3,
+    borderColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   levelBadge: {
     position: 'absolute',
     bottom: -8,
+    left: '50%',
+    transform: [{ translateX: -30 }],
     backgroundColor: colors.primaryAmber,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
@@ -396,6 +617,15 @@ const styles = StyleSheet.create({
   settingSubtitle: {
     ...typography.styles.small,
     color: colors.text.quaternary,
+  },
+  logoutItem: {
+    marginTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  logoutText: {
+    color: colors.state.error,
   },
 });
 

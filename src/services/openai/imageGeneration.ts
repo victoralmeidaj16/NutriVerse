@@ -6,17 +6,27 @@
 // Use environment variable or default to Render backend
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://nutriversee.onrender.com';
 
+export type GenerateImageOptions = {
+  size?: '512x512' | '1024x1024' | '2048x2048';
+  background?: 'transparent' | 'white'; // mapeado no backend
+  quality?: 'standard' | 'high';        // mapeado no backend
+};
+
 /**
- * Generate an image using DALL-E via backend API
+ * Generate an image using OpenAI Images API (gpt-image-1) via backend API
  */
-export async function generateImage(prompt: string): Promise<string | null> {
+export async function generateImage(
+  prompt: string,
+  options: GenerateImageOptions = {}
+): Promise<string | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-image`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ prompt }),
+      // mantém compatibilidade: backend trata ausência de options
+      body: JSON.stringify({ prompt, ...options }),
     });
 
     if (!response.ok) {
@@ -26,7 +36,7 @@ export async function generateImage(prompt: string): Promise<string | null> {
     }
 
     const data = await response.json();
-    return data.url || null;
+    return data.url || null; // data URL (base64) ou URL pública
   } catch (error) {
     console.error('Error generating image:', error);
     return null;
@@ -35,10 +45,14 @@ export async function generateImage(prompt: string): Promise<string | null> {
 
 /**
  * Generate a recipe illustration prompt
+ * Prompt helper (ajustado p/ brand)
  */
 export function generateRecipePrompt(recipeTitle?: string): string {
-  if (recipeTitle) {
-    return `Beautiful, appetizing food photography of ${recipeTitle}, professional food styling, dark background, vibrant colors, high quality, restaurant quality, minimalist composition, focus on the food`;
-  }
-  return `Beautiful, appetizing food photography, professional food styling, dark background, vibrant colors, high quality, restaurant quality, minimalist composition, focus on healthy nutritious food, NutriVerse brand style`;
+  const brand = 'emerald #10B981';
+  const base =
+    'Beautiful appetizing food photography, professional food styling, soft diffused light, 50mm lens, minimalist composition, restaurant quality, background off-white, brand accent ' +
+    brand;
+  return recipeTitle
+    ? `${base}, ${recipeTitle}`
+    : `${base}, focus on healthy nutritious food, NutriVerse brand style`;
 }

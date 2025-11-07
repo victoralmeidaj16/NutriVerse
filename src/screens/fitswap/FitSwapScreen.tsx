@@ -203,10 +203,6 @@ export default function FitSwapScreen() {
                     <Ionicons name="flash-outline" size={18} color={colors.button} />
                     <Text style={styles.ctaButtonText}>Cozinhar agora</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.ctaSecondary}>
-                    <Ionicons name="add-circle-outline" size={18} color={colors.text.primary} />
-                    <Text style={styles.ctaSecondaryText}>Adicionar ao plano</Text>
-                  </TouchableOpacity>
                 </View>
               </View>
             )}
@@ -425,23 +421,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
     color: colors.buttonText,
-  },
-  ctaSecondary: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-  },
-  ctaSecondaryText: {
-    fontFamily: typography.fontFamily.body,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.text.primary,
   },
   emptyState: {
     alignItems: 'center',

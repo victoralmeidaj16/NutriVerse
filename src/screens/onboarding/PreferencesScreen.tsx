@@ -2,21 +2,30 @@
  * Preferences Screen - Budget and cooking time preferences
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 import type { OnboardingStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<OnboardingStackParamList, 'Preferences'>;
 
 export default function PreferencesScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [budget, setBudget] = useState('');
-  const [cookingTime, setCookingTime] = useState('');
+  const { budgetPerPortion, averageCookingTime, setBudgetPerPortion, setAverageCookingTime } = useOnboarding();
+  const [budget, setBudget] = useState(budgetPerPortion?.toString() || '');
+  const [cookingTime, setCookingTime] = useState(averageCookingTime?.toString() || '');
+
+  useEffect(() => {
+    const budgetNum = budget ? parseFloat(budget) : undefined;
+    const timeNum = cookingTime ? parseInt(cookingTime, 10) : undefined;
+    setBudgetPerPortion(budgetNum);
+    setAverageCookingTime(timeNum);
+  }, [budget, cookingTime, setBudgetPerPortion, setAverageCookingTime]);
 
   const handleNext = () => {
     navigation.navigate('HealthConnect');

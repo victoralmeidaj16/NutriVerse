@@ -2,7 +2,7 @@
  * Restrictions Screen - Select allergies and dietary restrictions
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme';
 import { Restriction } from '../../types/user';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 import type { OnboardingStackParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<OnboardingStackParamList, 'Restrictions'>;
@@ -31,7 +32,12 @@ const RESTRICTIONS: { value: Restriction; label: string }[] = [
 
 export default function RestrictionsScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [selectedRestrictions, setSelectedRestrictions] = useState<Restriction[]>([]);
+  const { restrictions, setRestrictions } = useOnboarding();
+  const [selectedRestrictions, setSelectedRestrictions] = useState<Restriction[]>(restrictions);
+
+  useEffect(() => {
+    setRestrictions(selectedRestrictions);
+  }, [selectedRestrictions, setRestrictions]);
 
   const toggleRestriction = (restriction: Restriction) => {
     setSelectedRestrictions((prev) =>
@@ -42,11 +48,9 @@ export default function RestrictionsScreen() {
   };
 
   const handleNext = () => {
-    navigation.navigate('Preferences');
-  };
-
-  const handleSkip = () => {
-    navigation.navigate('Preferences');
+    // Save restrictions (can be empty array if no restrictions selected)
+    setRestrictions(selectedRestrictions);
+    navigation.navigate('SignUp');
   };
 
   return (
@@ -65,6 +69,14 @@ export default function RestrictionsScreen() {
         <Text style={styles.subtitle}>
           Selecione alergias, intolerâncias ou dietas que você segue
         </Text>
+
+        {selectedRestrictions.length === 0 && (
+          <View style={styles.noRestrictionsContainer}>
+            <Text style={styles.noRestrictionsText}>
+              Não possuo nenhuma restrição alimentar
+            </Text>
+          </View>
+        )}
 
         <View style={styles.chipsContainer}>
           {RESTRICTIONS.map((restriction) => {
@@ -97,13 +109,6 @@ export default function RestrictionsScreen() {
           activeOpacity={0.9}
         >
           <Text style={styles.buttonText}>Continuar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkip}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.skipButtonText}>Pular</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -163,9 +168,22 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.regular,
     color: colors.text.tertiary,
-    marginBottom: spacing['2xl'],
+    marginBottom: spacing.lg,
+  },
+  noRestrictionsContainer: {
+    marginBottom: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  noRestrictionsText: {
+    fontFamily: typography.fontFamily.body,
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.regular,
+    color: colors.text.quaternary,
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
   chipsContainer: {
+    marginBottom: spacing.xl,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
@@ -225,16 +243,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: typography.fontWeight.semibold,
     color: colors.buttonText,
-  },
-  skipButton: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    fontFamily: typography.fontFamily.body,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.regular,
-    color: colors.text.quaternary,
   },
 });
 

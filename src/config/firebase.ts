@@ -5,8 +5,9 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAnalytics, Analytics } from 'firebase/analytics';
 import { getDatabase, Database } from 'firebase/database';
-import { getAuth, Auth } from 'firebase/auth';
+import { initializeAuth, getAuth, Auth, getReactNativePersistence } from 'firebase/auth';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -48,9 +49,38 @@ if (getApps().length === 0) {
   }
 
   try {
-    auth = getAuth(app);
+    // Use initializeAuth with AsyncStorage for React Native persistence
+    // This is required for React Native to persist auth state
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+      });
+      console.log('Firebase Auth initialized with AsyncStorage persistence');
+    } catch (initError: any) {
+      // If already initialized, get the existing instance
+      if (initError.code === 'auth/already-initialized') {
+        console.log('Firebase Auth already initialized, getting existing instance');
+        auth = getAuth(app);
+      } else {
+        console.warn('Firebase Auth initialization error:', initError);
+        // Try to get existing instance
+        try {
+          auth = getAuth(app);
+          console.log('Using existing Firebase Auth instance');
+        } catch (getAuthError) {
+          console.error('Failed to get Firebase Auth instance:', getAuthError);
+        }
+      }
+    }
   } catch (error) {
-    console.warn('Firebase Auth initialization failed:', error);
+    console.error('Firebase Auth initialization failed:', error);
+    // Last resort: try to get existing instance
+    try {
+      auth = getAuth(app);
+      console.log('Using fallback Firebase Auth instance');
+    } catch (fallbackError) {
+      console.error('Firebase Auth fallback failed:', fallbackError);
+    }
   }
 
   try {
@@ -61,7 +91,25 @@ if (getApps().length === 0) {
 } else {
   app = getApps()[0];
   database = getDatabase(app);
-  auth = getAuth(app);
+  // Try to get existing auth instance, or initialize if needed
+  try {
+    auth = getAuth(app);
+  } catch (error) {
+    // If auth doesn't exist, initialize it with AsyncStorage
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+      });
+      console.log('Firebase Auth initialized with AsyncStorage (else block)');
+    } catch (initError: any) {
+      if (initError.code === 'auth/already-initialized') {
+        auth = getAuth(app);
+      } else {
+        console.warn('Failed to initialize auth in else block:', initError);
+        auth = getAuth(app);
+      }
+    }
+  }
   storage = getStorage(app);
 }
 

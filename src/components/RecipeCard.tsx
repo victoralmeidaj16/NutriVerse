@@ -15,7 +15,6 @@ interface RecipeCardProps {
   recipe: Recipe;
   onPress?: () => void;
   onCookPress?: () => void;
-  onAddToPlanPress?: () => void;
   showSwapTabs?: boolean;
 }
 
@@ -23,7 +22,6 @@ export default function RecipeCard({
   recipe,
   onPress,
   onCookPress,
-  onAddToPlanPress,
   showSwapTabs = true,
 }: RecipeCardProps) {
   const [activeVariant, setActiveVariant] = useState<RecipeVariant>(
@@ -107,8 +105,8 @@ export default function RecipeCard({
         </View>
 
         {/* CTAs */}
-        <View style={styles.ctaRow}>
-          {onCookPress && (
+        {onCookPress && (
+          <View style={styles.ctaRow}>
             <TouchableOpacity
               style={styles.ctaButton}
               onPress={onCookPress}
@@ -116,17 +114,8 @@ export default function RecipeCard({
               <Ionicons name="flash-outline" size={18} color={colors.button} />
               <Text style={styles.ctaButtonText}>Cozinhar</Text>
             </TouchableOpacity>
-          )}
-          {onAddToPlanPress && (
-            <TouchableOpacity
-              style={styles.ctaSecondary}
-              onPress={onAddToPlanPress}
-            >
-              <Ionicons name="add-circle-outline" size={18} color={colors.text.primary} />
-              <Text style={styles.ctaSecondaryText}>Adicionar</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -220,24 +209,6 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.semibold,
     color: colors.buttonText,
-  },
-  ctaSecondary: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  ctaSecondaryText: {
-    fontFamily: typography.fontFamily.body,
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.text.primary,
   },
 });
 

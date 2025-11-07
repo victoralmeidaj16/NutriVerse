@@ -3,43 +3,42 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme';
-import storageService from '../../services/storage/storage';
+import { useOnboarding } from '../../contexts/OnboardingContext';
 import type { OnboardingStackParamList } from '../../navigation/types';
+import type { RootStackParamList } from '../../navigation/types';
 
-type NavigationProp = NativeStackNavigationProp<OnboardingStackParamList, 'HealthConnect'>;
+type NavigationProp = NativeStackNavigationProp<OnboardingStackParamList, 'HealthConnect'> & 
+  NativeStackNavigationProp<RootStackParamList>;
 
 export default function HealthConnectScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const [healthAppConnected, setHealthAppConnected] = useState(false);
+  const { setHealthAppConnected, saveData } = useOnboarding();
+  const [loading, setLoading] = useState(false);
 
   const handleSkip = async () => {
-    await storageService.setOnboardingComplete(true);
-    // Reset navigation to main app
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
-      })
-    );
+    // Navigate to SignUp (last step of onboarding)
+    navigation.navigate('SignUp');
   };
 
   const handleConnect = async () => {
-    // In real implementation, this would connect to Apple Health/Google Fit
-    setHealthAppConnected(true);
-    await storageService.setOnboardingComplete(true);
-    // Reset navigation to main app
-    navigation.dispatch(
-      CommonActions.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
-      })
-    );
+    setLoading(true);
+    try {
+      // In real implementation, this would connect to Apple Health/Google Fit
+      // For now, we'll just mark as connected
+      setHealthAppConnected(true, 'apple_health'); // or 'google_fit' based on platform
+      // Navigate to SignUp (last step of onboarding)
+      navigation.navigate('SignUp');
+    } catch (error) {
+      console.error('Error connecting health app:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -78,16 +77,24 @@ export default function HealthConnectScreen() {
 
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.connectButton}
+          style={[styles.connectButton, loading && styles.buttonDisabled]}
           onPress={handleConnect}
+          disabled={loading}
           activeOpacity={0.9}
         >
-          <Ionicons name="link-outline" size={20} color={colors.buttonText} />
-          <Text style={styles.connectButtonText}>Conectar</Text>
+          {loading ? (
+            <ActivityIndicator color={colors.buttonText} />
+          ) : (
+            <>
+              <Ionicons name="link-outline" size={20} color={colors.buttonText} />
+              <Text style={styles.connectButtonText}>Conectar</Text>
+            </>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.skipButton}
+          style={[styles.skipButton, loading && styles.buttonDisabled]}
           onPress={handleSkip}
+          disabled={loading}
           activeOpacity={0.8}
         >
           <Text style={styles.skipButtonText}>Pular por enquanto</Text>
@@ -214,6 +221,9 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.regular,
     color: colors.text.quaternary,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
 });
 

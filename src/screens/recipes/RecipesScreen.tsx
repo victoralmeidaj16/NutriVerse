@@ -2,7 +2,7 @@
  * Recipes Screen - More faithful to the original web design
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   FlatList,
   TextInput,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -19,6 +20,10 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography, spacing } from '../../theme';
+import { getBaseRecipesForGoal, getGoalSectionTitle } from '../../services/recipes/recipeService';
+import { getUserWithTargets } from '../../services/user/userService';
+import { Recipe } from '../../types/recipe';
+import { UserGoal } from '../../types/user';
 import type { RootStackParamList, MainTabsParamList } from '../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList> & BottomTabNavigationProp<MainTabsParamList>;
@@ -51,6 +56,31 @@ const news = [
 
 export default function RecipesScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const [goalRecipes, setGoalRecipes] = useState<Recipe[]>([]);
+  const [userGoal, setUserGoal] = useState<UserGoal>('general_health');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadUserGoalAndRecipes();
+  }, []);
+
+  const loadUserGoalAndRecipes = async () => {
+    try {
+      setLoading(true);
+      // Get user goal
+      const { profile } = await getUserWithTargets();
+      const goal = profile?.preferences?.goal || 'general_health';
+      setUserGoal(goal);
+
+      // Load recipes for this goal
+      const recipes = await getBaseRecipesForGoal(goal);
+      setGoalRecipes(recipes);
+    } catch (error) {
+      console.error('Error loading recipes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -160,13 +190,48 @@ export default function RecipesScreen() {
             contentContainerStyle={styles.categoriesList}
           />
 
-          {/* Recommendation for vegan */}
-          <SectionHeader title="Recommendation for vegan" />
-          <View style={styles.recipesGrid}>
-            {veganRec.map((r, idx) => (
-              <RecipeCard key={r.id} recipe={r} index={idx} />
-            ))}
-          </View>
+          {/* Recipes for user's goal */}
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={styles.loadingText}>Carregando receitas...</Text>
+            </View>
+          ) : goalRecipes.length > 0 ? (
+            <>
+              <SectionHeader title={getGoalSectionTitle(userGoal)} />
+              <View style={styles.recipesGrid}>
+                {goalRecipes.slice(0, 4).map((recipe, idx) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={{
+                      id: recipe.id,
+                      title: recipe.original.title,
+                      author: 'NutriVerse',
+                      rating: 4.8,
+                    }}
+                    index={idx}
+                    fullRecipe={recipe}
+                    onPress={() => {
+                      navigation.navigate('RecipeDetailModal', {
+                        recipeId: recipe.id,
+                        recipe: recipe.original,
+                        nutrition: recipe.variants[0]?.nutrition,
+                      });
+                    }}
+                  />
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <SectionHeader title="Recommendation for vegan" />
+              <View style={styles.recipesGrid}>
+                {veganRec.map((r, idx) => (
+                  <RecipeCard key={r.id} recipe={r} index={idx} />
+                ))}
+              </View>
+            </>
+          )}
 
           {/* Today's news */}
           <SectionHeader title="Today's news" />
@@ -257,14 +322,33 @@ function CategoryChip({
 function RecipeCard({
   recipe,
   index,
+  onPress,
+  fullRecipe,
 }: {
-  recipe: { id: number; title: string; author: string; rating: number };
+  recipe: { id: number | string; title: string; author: string; rating: number };
   index: number;
+  onPress?: () => void;
+  fullRecipe?: Recipe;
 }) {
   const navigation = useNavigation<NavigationProp>();
   
   const handlePress = () => {
-    // Navigate to recipe detail with mock data
+    if (onPress) {
+      onPress();
+      return;
+    }
+    
+    // Use fullRecipe if available, otherwise fallback to mock data
+    if (fullRecipe) {
+      navigation.navigate('RecipeDetailModal', {
+        recipeId: fullRecipe.id,
+        recipe: fullRecipe.original,
+        nutrition: fullRecipe.variants[0]?.nutrition,
+      });
+      return;
+    }
+    
+    // Fallback to mock data if fullRecipe not provided
     const mockRecipe = {
       id: recipe.id.toString(),
       title: recipe.title,
@@ -733,6 +817,17 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.body,
     fontSize: 11,
     color: '#059669', // emerald-600
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing['2xl'],
+    gap: spacing.md,
+  },
+  loadingText: {
+    fontFamily: typography.fontFamily.body,
+    fontSize: typography.fontSize.base,
+    color: colors.text.quaternary,
   },
   newsList: {
     gap: spacing.md,

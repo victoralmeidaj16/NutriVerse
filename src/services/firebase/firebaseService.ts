@@ -4,7 +4,7 @@
 
 import { database, auth, storage } from '../../config/firebase';
 import { ref, get, set, push, update, remove, onValue, off, DataSnapshot } from 'firebase/database';
-import { signInAnonymously, signOut, User } from 'firebase/auth';
+import { signInAnonymously, signOut, User, onAuthStateChanged } from 'firebase/auth';
 import { ref as storageRef, uploadBytes, getDownloadURL, UploadResult } from 'firebase/storage';
 
 // Database operations
@@ -102,6 +102,36 @@ export const firebaseAuth = {
     }
   },
 
+  // Sign in with email and password
+  async signInWithEmailAndPassword(email: string, password: string): Promise<User> {
+    try {
+      if (!auth) {
+        throw new Error('Firebase Auth not initialized');
+      }
+      const { signInWithEmailAndPassword: signIn } = await import('firebase/auth');
+      const userCredential = await signIn(auth, email, password);
+      return userCredential.user;
+    } catch (error) {
+      console.error('Error signing in with email:', error);
+      throw error;
+    }
+  },
+
+  // Create user with email and password
+  async createUserWithEmailAndPassword(email: string, password: string): Promise<User> {
+    try {
+      if (!auth) {
+        throw new Error('Firebase Auth not initialized');
+      }
+      const { createUserWithEmailAndPassword: createUser } = await import('firebase/auth');
+      const userCredential = await createUser(auth, email, password);
+      return userCredential.user;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  },
+
   // Sign out
   async signOut(): Promise<void> {
     try {
@@ -118,6 +148,14 @@ export const firebaseAuth = {
   // Get current user
   getCurrentUser(): User | null {
     return auth?.currentUser || null;
+  },
+
+  // Listen to auth state changes
+  onAuthStateChanged(callback: (user: User | null) => void): () => void {
+    if (!auth) {
+      return () => {};
+    }
+    return onAuthStateChanged(auth, callback);
   },
 };
 

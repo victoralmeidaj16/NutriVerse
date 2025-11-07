@@ -48,30 +48,31 @@ export const typography = {
   },
 
   // Text Styles (predefined combinations)
+  // Note: lineHeight is in pixels for React Native (not fractional like web)
   styles: {
     // Titles
     h1: {
       fontSize: 28,
       fontWeight: '800' as const,
-      lineHeight: 1.2,
+      lineHeight: 34, // 28 * 1.2 = 33.6 → 34
       letterSpacing: -0.5,
     },
     h2: {
       fontSize: 24,
       fontWeight: '700' as const,
-      lineHeight: 1.2,
+      lineHeight: 29, // 24 * 1.2 = 28.8 → 29
       letterSpacing: -0.5,
     },
     h3: {
       fontSize: 20,
       fontWeight: '700' as const,
-      lineHeight: 1.3,
+      lineHeight: 26, // 20 * 1.3 = 26
       letterSpacing: 0,
     },
     h4: {
       fontSize: 18,
       fontWeight: '700' as const,
-      lineHeight: 1.4,
+      lineHeight: 25, // 18 * 1.4 = 25.2 → 25
       letterSpacing: 0,
     },
 
@@ -79,19 +80,19 @@ export const typography = {
     body: {
       fontSize: 15,
       fontWeight: '400' as const,
-      lineHeight: 1.5,
+      lineHeight: 23, // 15 * 1.5 = 22.5 → 23
       letterSpacing: 0,
     },
     bodyMedium: {
       fontSize: 15,
       fontWeight: '500' as const,
-      lineHeight: 1.5,
+      lineHeight: 23, // 15 * 1.5 = 22.5 → 23
       letterSpacing: 0,
     },
     bodySemibold: {
       fontSize: 15,
       fontWeight: '600' as const,
-      lineHeight: 1.5,
+      lineHeight: 23, // 15 * 1.5 = 22.5 → 23
       letterSpacing: 0,
     },
 
@@ -99,19 +100,19 @@ export const typography = {
     small: {
       fontSize: 13,
       fontWeight: '400' as const,
-      lineHeight: 1.5,
+      lineHeight: 20, // 13 * 1.5 = 19.5 → 20
       letterSpacing: 0,
     },
     smallMedium: {
       fontSize: 13,
       fontWeight: '500' as const,
-      lineHeight: 1.5,
+      lineHeight: 20, // 13 * 1.5 = 19.5 → 20
       letterSpacing: 0,
     },
     smallSemibold: {
       fontSize: 13,
       fontWeight: '600' as const,
-      lineHeight: 1.5,
+      lineHeight: 20, // 13 * 1.5 = 19.5 → 20
       letterSpacing: 0,
     },
 
@@ -119,7 +120,7 @@ export const typography = {
     caption: {
       fontSize: 11,
       fontWeight: '400' as const,
-      lineHeight: 1.4,
+      lineHeight: 15, // 11 * 1.4 = 15.4 → 15
       letterSpacing: 0,
     },
   },

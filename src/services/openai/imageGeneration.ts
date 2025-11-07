@@ -3,8 +3,8 @@
  * Generate images using backend API (proxy to protect API key)
  */
 
-// Use environment variable or default to localhost for development
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+// Use environment variable or default to Render backend
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://nutriversee.onrender.com';
 
 /**
  * Generate an image using DALL-E via backend API

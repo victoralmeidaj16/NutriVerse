@@ -6,8 +6,8 @@
 import { ParsedRecipe } from '../../types/recipe';
 import { Swap } from '../../types/recipe';
 
-// Use environment variable or default to localhost for development
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+// Use environment variable or default to Render backend
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://nutriversee.onrender.com';
 
 /**
  * Parse recipe from text using backend API

@@ -82,7 +82,7 @@ export default function RestrictionsScreen() {
                   {restriction.label}
                 </Text>
                 {isSelected && (
-                  <Ionicons name="checkmark" size={16} color={colors.button} />
+                  <Ionicons name="checkmark" size={16} color={colors.primary} />
                 )}
               </TouchableOpacity>
             );
@@ -123,9 +123,18 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   progressBar: {
     height: 4,
@@ -153,7 +162,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.body,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.regular,
-    color: colors.text.secondary,
+    color: colors.text.tertiary,
     marginBottom: spacing['2xl'],
   },
   chipsContainer: {
@@ -171,10 +180,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1,
   },
   chipSelected: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#ECFDF5', // emerald-50
     borderColor: colors.primary,
+    borderWidth: 2,
   },
   chipText: {
     fontFamily: typography.fontFamily.body,
@@ -183,20 +198,27 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   chipTextSelected: {
-    color: colors.button,
+    color: colors.primary,
+    fontWeight: typography.fontWeight.semibold,
   },
   footer: {
     paddingHorizontal: spacing.base,
     paddingVertical: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    backgroundColor: colors.card,
     gap: spacing.md,
   },
   button: {
     backgroundColor: colors.button,
     paddingVertical: spacing.md,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   buttonText: {
     fontFamily: typography.fontFamily.body,
@@ -212,7 +234,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.body,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.regular,
-    color: colors.text.secondary,
+    color: colors.text.quaternary,
   },
 });
 

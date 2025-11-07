@@ -51,28 +51,24 @@ export const typography = {
   styles: {
     // Titles
     h1: {
-      fontFamily: 'Poppins',
       fontSize: 28,
       fontWeight: '800' as const,
       lineHeight: 1.2,
       letterSpacing: -0.5,
     },
     h2: {
-      fontFamily: 'Poppins',
       fontSize: 24,
       fontWeight: '700' as const,
       lineHeight: 1.2,
       letterSpacing: -0.5,
     },
     h3: {
-      fontFamily: 'Poppins',
       fontSize: 20,
       fontWeight: '700' as const,
       lineHeight: 1.3,
       letterSpacing: 0,
     },
     h4: {
-      fontFamily: 'Poppins',
       fontSize: 18,
       fontWeight: '700' as const,
       lineHeight: 1.4,
@@ -81,21 +77,18 @@ export const typography = {
 
     // Body
     body: {
-      fontFamily: 'Inter',
       fontSize: 15,
       fontWeight: '400' as const,
       lineHeight: 1.5,
       letterSpacing: 0,
     },
     bodyMedium: {
-      fontFamily: 'Inter',
       fontSize: 15,
       fontWeight: '500' as const,
       lineHeight: 1.5,
       letterSpacing: 0,
     },
     bodySemibold: {
-      fontFamily: 'Inter',
       fontSize: 15,
       fontWeight: '600' as const,
       lineHeight: 1.5,
@@ -104,21 +97,18 @@ export const typography = {
 
     // Small text
     small: {
-      fontFamily: 'Inter',
       fontSize: 13,
       fontWeight: '400' as const,
       lineHeight: 1.5,
       letterSpacing: 0,
     },
     smallMedium: {
-      fontFamily: 'Inter',
       fontSize: 13,
       fontWeight: '500' as const,
       lineHeight: 1.5,
       letterSpacing: 0,
     },
     smallSemibold: {
-      fontFamily: 'Inter',
       fontSize: 13,
       fontWeight: '600' as const,
       lineHeight: 1.5,
@@ -127,7 +117,6 @@ export const typography = {
 
     // Caption
     caption: {
-      fontFamily: 'Inter',
       fontSize: 11,
       fontWeight: '400' as const,
       lineHeight: 1.4,

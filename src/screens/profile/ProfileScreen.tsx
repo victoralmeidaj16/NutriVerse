@@ -23,6 +23,15 @@ export default function ProfileScreen() {
   const [tdee, setTdee] = useState<number | null>(null);
   const [macroTargets, setMacroTargets] = useState<MacroTargets | null>(null);
   const [dailyProgress, setDailyProgress] = useState<DailyProgress | null>(null);
+  const [points, setPoints] = useState(1250);
+  const [level, setLevel] = useState(5);
+  const [badges, setBadges] = useState([
+    { id: '1', name: 'Primeiro passo', icon: 'footsteps', unlocked: true },
+    { id: '2', name: 'Semana completa', icon: 'calendar', unlocked: true },
+    { id: '3', name: 'Mestre da proteína', icon: 'barbell', unlocked: true },
+    { id: '4', name: '100 receitas', icon: 'restaurant', unlocked: false },
+    { id: '5', name: '30 dias seguidos', icon: 'flame', unlocked: false },
+  ]);
 
   useEffect(() => {
     loadData();
@@ -50,11 +59,20 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>
               {profile?.name?.charAt(0).toUpperCase() || 'U'}
             </Text>
+            <View style={styles.levelBadge}>
+              <Text style={styles.levelText}>Nível {level}</Text>
+            </View>
           </View>
           <Text style={styles.userName}>{profile?.name || 'Usuário'}</Text>
           {profile?.email && (
             <Text style={styles.userEmail}>{profile.email}</Text>
           )}
+          
+          {/* Points */}
+          <View style={styles.pointsCard}>
+            <Ionicons name="trophy" size={20} color={colors.primaryAmber} />
+            <Text style={styles.pointsText}>{points.toLocaleString()} pontos</Text>
+          </View>
         </View>
 
         {/* TDEE & Goals */}
@@ -92,6 +110,54 @@ export default function ProfileScreen() {
             />
           </View>
         )}
+
+        {/* Badges Section */}
+        <View style={styles.badgesSection}>
+          <Text style={styles.sectionTitle}>Badges e conquistas</Text>
+          <View style={styles.badgesGrid}>
+            {badges.map((badge) => (
+              <View
+                key={badge.id}
+                style={[
+                  styles.badgeCard,
+                  !badge.unlocked && styles.badgeCardLocked,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.badgeIconContainer,
+                    !badge.unlocked && styles.badgeIconContainerLocked,
+                  ]}
+                >
+                  <Ionicons
+                    name={badge.icon as any}
+                    size={32}
+                    color={badge.unlocked ? colors.primaryAmber : colors.text.quaternary}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.badgeName,
+                    !badge.unlocked && styles.badgeNameLocked,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {badge.name}
+                </Text>
+                {badge.unlocked && (
+                  <View style={styles.badgeCheck}>
+                    <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+                  </View>
+                )}
+                {!badge.unlocked && (
+                  <View style={styles.badgeLock}>
+                    <Ionicons name="lock-closed" size={12} color={colors.text.quaternary} />
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        </View>
 
         {/* Settings Options */}
         <View style={styles.settingsSection}>
@@ -154,11 +220,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.md,
+    position: 'relative',
   },
   avatarText: {
     ...typography.styles.h1,
     color: colors.button,
     fontSize: 32,
+  },
+  levelBadge: {
+    position: 'absolute',
+    bottom: -8,
+    backgroundColor: colors.primaryAmber,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.background,
+  },
+  levelText: {
+    ...typography.styles.caption,
+    fontSize: 10,
+    fontWeight: typography.fontWeight.bold,
+    color: colors.button,
+  },
+  pointsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing.md,
+  },
+  pointsText: {
+    ...typography.styles.bodySemibold,
+    color: colors.text.primary,
   },
   userName: {
     ...typography.styles.h3,
@@ -200,6 +299,78 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    ...typography.styles.h4,
+    color: colors.text.primary,
+    marginBottom: spacing.md,
+  },
+  badgesSection: {
+    marginBottom: spacing.xl,
+  },
+  badgesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  badgeCard: {
+    width: '30%',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  badgeCardLocked: {
+    backgroundColor: colors.neutral.light1,
+    borderColor: colors.border,
+    borderWidth: 1,
+  },
+  badgeIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.neutral.light1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  badgeIconContainerLocked: {
+    backgroundColor: colors.neutral.light2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    opacity: 0.5,
+  },
+  badgeName: {
+    fontSize: 12,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.text.primary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+  },
+  badgeNameLocked: {
+    color: colors.text.quaternary,
+    fontWeight: typography.fontWeight.medium,
+  },
+  badgeCheck: {
+    position: 'absolute',
+    top: spacing.xs,
+    right: spacing.xs,
+  },
+  badgeLock: {
+    position: 'absolute',
+    top: spacing.xs,
+    right: spacing.xs,
+    backgroundColor: colors.neutral.light2,
+    borderRadius: 10,
+    padding: 4,
   },
   settingsSection: {
     gap: spacing.sm,

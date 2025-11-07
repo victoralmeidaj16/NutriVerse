@@ -82,7 +82,7 @@ export default function HealthConnectScreen() {
           onPress={handleConnect}
           activeOpacity={0.9}
         >
-          <Ionicons name="link-outline" size={20} color={colors.button} />
+          <Ionicons name="link-outline" size={20} color={colors.buttonText} />
           <Text style={styles.connectButtonText}>Conectar</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -127,10 +127,12 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: colors.primary + '20',
+    backgroundColor: colors.neutral.light1,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: spacing.xl,
+    borderWidth: 2,
+    borderColor: colors.primaryLight,
   },
   title: {
     fontFamily: typography.fontFamily.title,
@@ -144,7 +146,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.body,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.regular,
-    color: colors.text.secondary,
+    color: colors.text.tertiary,
     textAlign: 'center',
     marginBottom: spacing['2xl'],
     lineHeight: 24,
@@ -159,9 +161,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   benefitText: {
     fontFamily: typography.fontFamily.body,
@@ -175,22 +182,28 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+    backgroundColor: colors.card,
     gap: spacing.md,
   },
   connectButton: {
     backgroundColor: colors.primary,
     paddingVertical: spacing.md,
-    borderRadius: 12,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
   },
   connectButtonText: {
     fontFamily: typography.fontFamily.body,
     fontSize: 16,
     fontWeight: typography.fontWeight.semibold,
-    color: colors.button,
+    color: colors.buttonText,
   },
   skipButton: {
     paddingVertical: spacing.md,
@@ -200,7 +213,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.body,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.regular,
-    color: colors.text.secondary,
+    color: colors.text.quaternary,
   },
 });
 

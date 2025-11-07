@@ -6,12 +6,14 @@ export type RootStackParamList = {
   OnboardingStack: undefined;
   MainTabs: undefined;
   FitSwapModal?: { inputType?: 'text' | 'photo' | 'link'; initialValue?: string };
-  RecipeDetailModal?: { recipeId: string };
+  RecipeDetailModal?: { recipeId: string; recipe?: any; nutrition?: any };
   CookingModeModal?: { recipeId: string; variantId?: string };
   PantryModeModal?: undefined;
   PreferencesModal?: undefined;
   GoalsModal?: undefined;
   WeeklyPlanModal?: undefined;
+  RecipesHomeModal?: undefined;
+  AIGeneratedRecipeModal?: undefined;
 };
 
 export type OnboardingStackParamList = {
@@ -24,8 +26,7 @@ export type OnboardingStackParamList = {
 
 export type MainTabsParamList = {
   Home: undefined;
-  Explore: undefined;
-  Community: undefined;
+  Explore?: { focusSearch?: boolean; initialQuery?: string };
   Profile: undefined;
 };
 

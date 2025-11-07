@@ -12,10 +12,9 @@ import { colors } from '../theme';
 import storageService from '../services/storage/storage';
 
 // Screens (will be created)
-import HomeScreen from '../screens/home/HomeScreen';
+import RecipesScreen from '../screens/recipes/RecipesScreen';
 import ExploreScreen from '../screens/explore/ExploreScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
-import CommunityPlaceholderScreen from '../screens/community/CommunityPlaceholderScreen';
 
 // Onboarding screens (will be created)
 import WelcomeScreen from '../screens/onboarding/WelcomeScreen';
@@ -31,6 +30,9 @@ import PreferencesModalScreen from '../screens/profile/PreferencesScreen';
 import GoalsScreen from '../screens/profile/GoalsScreen';
 import PantryModeScreen from '../screens/pantry/PantryModeScreen';
 import WeeklyPlanScreen from '../screens/planning/WeeklyPlanScreen';
+import RecipesHomeScreen from '../screens/recipes/RecipesHomeScreen';
+import RecipeDetailScreen from '../screens/recipes/RecipeDetailScreen';
+import AIGeneratedRecipeScreen from '../screens/recipes/AIGeneratedRecipeScreen';
 
 import type { RootStackParamList, OnboardingStackParamList, MainTabsParamList } from './types';
 
@@ -80,7 +82,7 @@ function MainTabsNavigator() {
     >
       <MainTabs.Screen
         name="Home"
-        component={HomeScreen}
+        component={RecipesScreen}
         options={{
           tabBarLabel: 'Início',
           tabBarIcon: ({ color, size }) => (
@@ -95,16 +97,6 @@ function MainTabsNavigator() {
           tabBarLabel: 'Explorar',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <MainTabs.Screen
-        name="Community"
-        component={CommunityPlaceholderScreen}
-        options={{
-          tabBarLabel: 'Comunidade',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
           ),
         }}
       />
@@ -172,6 +164,9 @@ export default function AppNavigator() {
               <RootStack.Screen name="PreferencesModal" component={PreferencesModalScreen} />
               <RootStack.Screen name="GoalsModal" component={GoalsScreen} />
               <RootStack.Screen name="WeeklyPlanModal" component={WeeklyPlanScreen} />
+              <RootStack.Screen name="RecipesHomeModal" component={RecipesHomeScreen} />
+              <RootStack.Screen name="RecipeDetailModal" component={RecipeDetailScreen} />
+              <RootStack.Screen name="AIGeneratedRecipeModal" component={AIGeneratedRecipeScreen} />
             </RootStack.Group>
           </>
         )}

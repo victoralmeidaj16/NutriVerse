@@ -7,7 +7,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, spacing } from '../../theme';
 import type { OnboardingStackParamList } from '../../navigation/types';
@@ -23,11 +22,6 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <LinearGradient
-        colors={[colors.background, colors.card]}
-        style={StyleSheet.absoluteFill}
-      />
-      
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <View style={styles.logoCircle}>
@@ -51,7 +45,7 @@ export default function WelcomeScreen() {
           activeOpacity={0.9}
         >
           <Text style={styles.buttonText}>Vamos começar</Text>
-          <Ionicons name="arrow-forward" size={20} color={colors.button} />
+          <Ionicons name="arrow-forward" size={20} color={colors.buttonText} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -80,12 +74,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 4,
-    borderColor: colors.primary + '40',
+    borderColor: colors.primaryLight,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
   },
   logoText: {
     fontSize: 64,
     fontWeight: '800',
-    color: colors.button,
+    color: colors.buttonText,
     fontFamily: typography.fontFamily.title,
   },
   title: {
@@ -100,7 +99,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.body,
     fontSize: typography.fontSize.base,
     fontWeight: typography.fontWeight.medium,
-    color: colors.text.secondary,
+    color: colors.text.tertiary,
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
@@ -114,21 +113,26 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   button: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.button,
     paddingHorizontal: spacing['2xl'],
     paddingVertical: spacing.lg,
-    borderRadius: 16,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     minWidth: 200,
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
   },
   buttonText: {
     fontFamily: typography.fontFamily.body,
     fontSize: 16,
     fontWeight: typography.fontWeight.semibold,
-    color: colors.button,
+    color: colors.buttonText,
   },
 });
 

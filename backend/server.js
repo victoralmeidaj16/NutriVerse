@@ -55,16 +55,18 @@ app.post('/api/generate-image', async (req, res) => {
       size: resolvedSize,
       quality: resolvedQuality,
       background: resolvedBackground,
-      response_format: 'b64_json',
       n: 1,
     });
 
-    const imageBase64 = result.data?.[0]?.b64_json;
-    if (!imageBase64) {
+    const imageData = result.data?.[0];
+    const imageBase64 = imageData?.b64_json;
+    const imageUrl = imageData?.url;
+
+    if (!imageBase64 && !imageUrl) {
       return res.status(502).json({ error: 'No image returned' });
     }
 
-    const dataUrl = `data:image/png;base64,${imageBase64}`;
+    const dataUrl = imageBase64 ? `data:image/png;base64,${imageBase64}` : imageUrl;
     return res.json({ url: dataUrl });
   } catch (error) {
     console.error('OpenAI error:', error?.response?.data || error);

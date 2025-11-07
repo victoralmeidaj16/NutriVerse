@@ -36,35 +36,115 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 const GOALS = ['lose_weight', 'gain_mass', 'general_health'];
-const RECIPES_PER_GOAL = 5;
+const CATEGORIES = ['Café', 'Almoço rápido', 'Pré/Pós‑treino', 'Snacks'];
+const RECIPES_PER_CATEGORY_PER_GOAL = 1; // 1 recipe per category per goal = 4 recipes per goal
 
-// Recipe ideas for each goal
+// Recipe ideas for each goal and category
 const RECIPE_IDEAS = {
-  lose_weight: [
-    'Salada de quinoa com frango grelhado e vegetais',
-    'Sopa de legumes com proteína magra',
-    'Bowl de salmão com abacate e vegetais',
-    'Omelete de claras com espinafre e cogumelos',
-    'Frango grelhado com batata doce e brócolis',
-  ],
-  gain_mass: [
-    'Frango com arroz integral e feijão',
-    'Macarrão integral com carne moída e molho',
-    'Bowl de frango, batata doce e quinoa',
-    'Peito de peru com batata e vegetais',
-    'Salmão com arroz e legumes',
-  ],
-  general_health: [
-    'Salmão grelhado com quinoa e vegetais',
-    'Frango ao curry com arroz integral',
-    'Bowl mediterrâneo com grão-de-bico',
-    'Peixe assado com batata doce e salada',
-    'Risotto de cogumelos com proteína',
-  ],
+  lose_weight: {
+    'Café': [
+      'Omelete de claras com espinafre e cogumelos',
+      'Aveia com frutas e proteína',
+      'Panqueca de banana e aveia sem açúcar',
+    ],
+    'Almoço rápido': [
+      'Salada de quinoa com frango grelhado e vegetais',
+      'Sopa de legumes com proteína magra',
+      'Bowl de salmão com abacate e vegetais',
+    ],
+    'Pré/Pós‑treino': [
+      'Frango grelhado com batata doce e brócolis',
+      'Salmão com batata doce e vegetais',
+      'Peito de peru com quinoa e vegetais',
+    ],
+    'Snacks': [
+      'Iogurte grego com frutas e granola',
+      'Mix de castanhas e frutas secas',
+      'Barra de proteína caseira',
+    ],
+  },
+  gain_mass: {
+    'Café': [
+      'Omelete completa com pão integral e queijo',
+      'Aveia com whey protein e frutas',
+      'Panqueca de banana com mel e proteína',
+    ],
+    'Almoço rápido': [
+      'Frango com arroz integral e feijão',
+      'Macarrão integral com carne moída e molho',
+      'Bowl de frango, batata doce e quinoa',
+    ],
+    'Pré/Pós‑treino': [
+      'Peito de peru com batata e vegetais',
+      'Salmão com arroz e legumes',
+      'Carne moída com batata doce e vegetais',
+    ],
+    'Snacks': [
+      'Shake de proteína com banana e aveia',
+      'Sanduíche de frango com pão integral',
+      'Iogurte grego com granola e mel',
+    ],
+  },
+  general_health: {
+    'Café': [
+      'Omelete com vegetais e pão integral',
+      'Aveia com frutas e sementes',
+      'Panqueca de banana e aveia',
+    ],
+    'Almoço rápido': [
+      'Salmão grelhado com quinoa e vegetais',
+      'Frango ao curry com arroz integral',
+      'Bowl mediterrâneo com grão-de-bico',
+    ],
+    'Pré/Pós‑treino': [
+      'Peixe assado com batata doce e salada',
+      'Frango grelhado com quinoa e vegetais',
+      'Salmão com batata doce e legumes',
+    ],
+    'Snacks': [
+      'Iogurte com frutas e granola',
+      'Mix de castanhas e frutas',
+      'Hummus com vegetais',
+    ],
+  },
 };
 
-async function generateRecipeForGoal(goal, recipeTitle) {
-  console.log(`  → Generating: "${recipeTitle}"`);
+/**
+ * Generate image for recipe
+ */
+async function generateRecipeImage(recipeTitle, category) {
+  try {
+    const prompt = `Beautiful appetizing food photography, professional food styling, soft diffused light, 50mm lens, minimalist composition, restaurant quality, background off-white, brand accent emerald #10B981, ${recipeTitle}`;
+    
+    const response = await fetch(`${API_BASE_URL}/api/generate-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        prompt,
+        size: '1024x1024',
+        quality: 'standard',
+        background: 'transparent',
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.warn(`    ⚠️  Image generation failed: ${error.error || 'Unknown error'}`);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.url || null;
+  } catch (error) {
+    console.warn(`    ⚠️  Image generation error: ${error.message}`);
+    return null;
+  }
+}
+
+async function generateRecipeForGoal(goal, recipeTitle, category) {
+  console.log(`  → Generating: "${recipeTitle}" (${category})`);
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/generate-base-recipe`, {
@@ -75,6 +155,7 @@ async function generateRecipeForGoal(goal, recipeTitle) {
       body: JSON.stringify({
         goal,
         recipeTitle,
+        category,
       }),
     });
 
@@ -85,6 +166,10 @@ async function generateRecipeForGoal(goal, recipeTitle) {
 
     const data = await response.json();
     const recipeData = data.recipes[0];
+
+    // Generate image for the recipe
+    console.log(`    🖼️  Generating image...`);
+    const imageUrl = await generateRecipeImage(recipeData.title || recipeTitle, category);
 
     // Format to Recipe structure
     const recipe = {
@@ -97,6 +182,7 @@ async function generateRecipeForGoal(goal, recipeTitle) {
         prepTime: recipeData.prepTime || 0,
         cookTime: recipeData.cookTime || 0,
         totalTime: (recipeData.prepTime || 0) + (recipeData.cookTime || 0),
+        imageUrl: imageUrl || undefined, // Add image URL if generated
         ingredients: (recipeData.ingredients || []).map((ing, idx) => ({
           id: `ing_${idx}`,
           name: ing.name,
@@ -115,7 +201,10 @@ async function generateRecipeForGoal(goal, recipeTitle) {
         {
           id: 'original',
           name: 'Original',
-          recipe: recipeData,
+          recipe: {
+            ...recipeData,
+            imageUrl: imageUrl || undefined, // Add image URL to variant too
+          },
           swaps: [],
           nutrition: recipeData.nutrition || {
             calories: 0,
@@ -129,6 +218,8 @@ async function generateRecipeForGoal(goal, recipeTitle) {
       ],
       createdAt: new Date().toISOString(),
       goal,
+      category: category || null,
+      restrictions: recipeData.restrictions || [], // Restrictions this recipe contains
     };
 
     return recipe;
@@ -141,37 +232,46 @@ async function generateRecipeForGoal(goal, recipeTitle) {
 async function generateAllBaseRecipes() {
   console.log('🚀 Starting base recipes generation...\n');
 
+  let totalRecipes = 0;
+
   for (const goal of GOALS) {
-    console.log(`📝 Generating recipes for goal: ${goal}`);
-    const recipeIdeas = RECIPE_IDEAS[goal];
+    console.log(`\n📝 Generating recipes for goal: ${goal}`);
+    const goalRecipes = RECIPE_IDEAS[goal];
 
-    for (let i = 0; i < RECIPES_PER_GOAL; i++) {
-      const recipeTitle = recipeIdeas[i];
+    for (const category of CATEGORIES) {
+      console.log(`\n  📂 Category: ${category}`);
+      const categoryRecipes = goalRecipes[category] || [];
 
-      try {
-        const recipe = await generateRecipeForGoal(goal, recipeTitle);
+      for (let i = 0; i < RECIPES_PER_CATEGORY_PER_GOAL && i < categoryRecipes.length; i++) {
+        const recipeTitle = categoryRecipes[i];
 
-        // Save to Firebase
-        const recipeRef = ref(database, `recipes/${goal}/${recipe.id}`);
-        await set(recipeRef, recipe);
+        try {
+          const recipe = await generateRecipeForGoal(goal, recipeTitle, category);
 
-        console.log(`  ✅ Saved: ${recipe.id}\n`);
+          // Save to Firebase
+          const recipeRef = ref(database, `recipes/${goal}/${recipe.id}`);
+          await set(recipeRef, recipe);
 
-        // Wait a bit to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      } catch (error) {
-        console.error(`  ❌ Failed: ${recipeTitle}`, error.message);
-        // Wait before retrying
-        await new Promise((resolve) => setTimeout(resolve, 3000));
+          console.log(`    ✅ Saved: ${recipe.id}${recipe.original.imageUrl ? ' (with image)' : ' (no image)'}`);
+          totalRecipes++;
+
+          // Wait a bit to avoid rate limiting (longer delay for image generation)
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        } catch (error) {
+          console.error(`    ❌ Failed: ${recipeTitle}`, error.message);
+          // Wait before retrying
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
       }
     }
   }
 
-  console.log('✨ Base recipes generation complete!');
+  console.log('\n✨ Base recipes generation complete!');
   console.log(`\n📊 Summary:`);
   console.log(`   - ${GOALS.length} goals`);
-  console.log(`   - ${RECIPES_PER_GOAL} recipes per goal`);
-  console.log(`   - Total: ${GOALS.length * RECIPES_PER_GOAL} recipes`);
+  console.log(`   - ${CATEGORIES.length} categories per goal`);
+  console.log(`   - ${RECIPES_PER_CATEGORY_PER_GOAL} recipe(s) per category`);
+  console.log(`   - Total: ${totalRecipes} recipes generated`);
 }
 
 // Run if executed directly
